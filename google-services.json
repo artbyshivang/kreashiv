@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "602778307055",
+    "project_id": "my-kreashiv-app",
+    "storage_bucket": "my-kreashiv-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:602778307055:android:a5c4bcf7aee8b363744e1a",
+        "android_client_info": {
+          "package_name": "com.kreashiv.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD3X-wVWEzH3OsZKvZHzBAXLy43j4T37o0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,206 @@
+import React, { useContext, useState } from 'react';
+
+import {
+    View,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    SafeAreaView,
+    Alert,
+} from 'react-native';
+
+import { ArrowLeft } from 'lucide-react-native';
+
+import { ThemeContext } from '../theme/ThemeContext';
+
+
+
+
+
+
+
+const ForgotPasswordScreen = ({ navigation }) => {
+
+    const { theme } = useContext(ThemeContext);
+
+    const [email, setEmail] = useState("");
+
+    const [loading, setLoading] = useState(false);
+
+    const handleForgotPassword = async () => {
+
+        if (!email) {
+
+            Alert.alert(
+                "Error",
+                "Please enter email"
+            );
+
+            return;
+        }
+
+        try {
+
+            setLoading(true);
+
+            await fetch(
+                "http://192.168.29.140:5000/send-reset-email",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+
+                    body: JSON.stringify({
+                        email,
+                    }),
+                }
+            );
+
+            Alert.alert(
+                "Success",
+                "Reset email sent. Please check inbox or spam folder."
+            );
+
+        } catch (error) {
+
+            console.log(error);
+
+            Alert.alert(
+                "Error",
+                "Unable to send reset email"
+            );
+
+        } finally {
+
+            setLoading(false);
+        }
+    };
+
+
+
+
+    return (
+
+        <SafeAreaView
+            style={{
+                flex: 1,
+                justifyContent: 'center',
+                padding: 20,
+                backgroundColor: theme.background,
+            }}
+        >
+
+            <View
+                style={{
+                    backgroundColor: theme.card,
+                    borderRadius: 24,
+                    padding: 20,
+                }}
+            >
+
+                {/* Back Button */}
+                <TouchableOpacity
+                    onPress={() => navigation.goBack()}
+                    style={{
+                        marginBottom: 20,
+                    }}
+                >
+
+                    <ArrowLeft
+                        size={26}
+                        color={theme.primary}
+                    />
+
+                </TouchableOpacity>
+
+                <Text
+                    style={{
+                        fontSize: 30,
+                        fontWeight: 'bold',
+                        color: theme.primary,
+                        textAlign: 'center',
+                    }}
+                >
+                    Forgot Password
+                </Text>
+
+                <Text
+                    style={{
+                        textAlign: 'center',
+                        marginTop: 10,
+                        color: theme.subText,
+                    }}
+                >
+                    Enter your email address to reset password.
+                </Text>
+
+                {/* Email */}
+                <View style={{ marginTop: 30 }}>
+
+                    <Text
+                        style={{
+                            fontWeight: '700',
+                            marginBottom: 8,
+                            color: theme.text,
+                        }}
+                    >
+                        EMAIL ADDRESS
+                    </Text>
+
+                    <TextInput
+                        placeholder="hello@email.com"
+                        placeholderTextColor={theme.subText}
+                        value={email}
+                        onChangeText={setEmail}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        style={{
+                            borderWidth: 1,
+                            borderColor: theme.border,
+                            borderRadius: 14,
+                            height: 52,
+                            paddingHorizontal: 15,
+                            color: theme.text,
+                        }}
+                    />
+
+                </View>
+
+                {/* Button */}
+                <TouchableOpacity
+                    onPress={handleForgotPassword}
+                    disabled={loading}
+                    style={{
+                        backgroundColor: theme.primary,
+                        height: 52,
+                        borderRadius: 14,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        marginTop: 28,
+                        opacity: loading ? 0.7 : 1,
+                    }}
+                >
+
+                    <Text
+                        style={{
+                            color: '#fff',
+                            fontSize: 18,
+                            fontWeight: 'bold',
+                        }}
+                    >
+                        {loading
+                            ? "Sending..."
+                            : "Send Reset Link"}
+                    </Text>
+
+                </TouchableOpacity>
+
+            </View>
+
+        </SafeAreaView>
+    );
+};
+
+export default ForgotPasswordScreen;
