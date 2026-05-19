@@ -14,8 +14,9 @@ router.post("/send-reset-email", async (req, res) => {
 
     const { email } = req.body;
 
-    const resetLink =
-      await admin.auth().generatePasswordResetLink(email);
+    const resetLink = await admin
+      .auth()
+      .generatePasswordResetLink(email);
 
     const response = await resend.emails.send({
       from: "Kreashiv <noreply@kreashiv.cloud>",
@@ -33,8 +34,8 @@ router.post("/send-reset-email", async (req, res) => {
               background:#7c3aed;
               color:white;
               padding:12px 20px;
-              text-decoration:none;
               border-radius:8px;
+              text-decoration:none;
               display:inline-block;
               margin-top:10px;
             "
