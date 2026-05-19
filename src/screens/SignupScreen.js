@@ -83,57 +83,40 @@ const SignupScreen = ({ navigation }) => {
             return;
         }
 
-        try {
+       try {
 
-            setLoading(true);
+    setLoading(true);
 
-            const result = await signup(
-                name,
-                phone,
-                email,
-                password
-            );
+    const result = await signup(
+        name,
+        phone,
+        email,
+        password
+    );
 
-            if (result.success) {
+    if (result.success) {
 
-                await fetch(
-                    "http://192.168.29.140:5000/send-verification-email",
-                    {
+        alert(
+            "Verification email sent. Please check your inbox."
+        );
 
-                        method: "POST",
+    } else {
 
-                        headers: {
-                            "Content-Type": "application/json",
-                        },
+        alert(result.error);
+    }
 
-                        body: JSON.stringify({
-                            email,
-                        }),
-                    }
-                );
+} catch (error) {
 
-                alert(
-                    "Verification email sent. Please check your inbox."
-                );
+    console.log(error);
 
-            } else {
+    alert("Something went wrong");
 
-                alert(result.error);
-            }
+} finally {
 
-        } catch (error) {
+    setLoading(false);
+}
 
-            console.log(error);
-
-            alert("Something went wrong");
-
-        } finally {
-
-            setLoading(false);
-        }
-    };
-
-
+};
 
 
     return (

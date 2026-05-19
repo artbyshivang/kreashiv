@@ -43,25 +43,39 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
             setLoading(true);
 
-            await fetch(
-                "http://192.168.29.140:5000/send-reset-email",
-                {
-                    method: "POST",
+            const response = await fetch(
+    "https://kreashiv-api.onrender.com/api/send-reset-email",
+    {
+        method: "POST",
 
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
+        headers: {
+            "Content-Type": "application/json",
+        },
 
-                    body: JSON.stringify({
-                        email,
-                    }),
-                }
-            );
+        body: JSON.stringify({
+            email,
+        }),
+    }
+);
 
-            Alert.alert(
-                "Success",
-                "Reset email sent. Please check inbox or spam folder."
-            );
+const data = await response.json();
+
+console.log("Backend Response:", data);
+
+if (response.ok) {
+
+    Alert.alert(
+        "Success",
+        "Reset email sent. Please check inbox."
+    );
+
+} else {
+
+    Alert.alert(
+        "Error",
+        data.error || "Unable to send reset email"
+    );
+}
 
         } catch (error) {
 

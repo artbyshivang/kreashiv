@@ -47,3 +47,7 @@ app-example
 # my save file 
 
 .env
+
+
+*.json
+.env

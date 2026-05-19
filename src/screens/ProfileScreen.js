@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useEffect, } from "react";
 import {
   View,
   Text,
@@ -12,8 +12,17 @@ import { useNavigation } from "@react-navigation/native";
 import { ThemeContext } from "../theme/ThemeContext";
 import { UserContext } from "../context/UserContext";
 
+import * as ImagePicker from "expo-image-picker";
+import { useState } from "react";
+import auth from "../firebase/auth";
+
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 
 export default function ProfileScreen() {
+
+
+
   const navigation = useNavigation();
   const {
     theme,
@@ -25,6 +34,39 @@ export default function ProfileScreen() {
     user,
     logout,
   } = useContext(UserContext);
+  
+
+const [profileImage, setProfileImage] =
+  useState(user?.photoURL || null);
+
+useEffect(() => {
+
+  loadProfileImage();
+
+}, []);
+
+const loadProfileImage = async () => {
+
+  try {
+
+    const savedImage =
+      await AsyncStorage.getItem(
+        `profileImage_${user.uid}`
+      );
+
+    if (savedImage) {
+
+      setProfileImage(savedImage);
+    }
+
+  } catch (error) {
+
+    console.log(error);
+  }
+};
+
+
+
 
   const isDark = themeMode === "dark" || (themeMode === "system" && theme.background === "#0f172a");
 
@@ -48,6 +90,49 @@ export default function ProfileScreen() {
       alert("Logout Failed");
     }
   };
+
+/*image my upload */
+
+const pickImage = async () => {
+  try {
+
+    const permission =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permission.granted) {
+      alert("Gallery permission required");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+
+    if (!result.canceled) {
+
+      const imageUri = result.assets[0].uri;
+
+      setProfileImage(imageUri);
+
+
+      await AsyncStorage.setItem(
+  `profileImage_${user.uid}`,
+  imageUri
+);
+
+      // future firebase upload yaha hoga
+
+    }
+
+  } catch (error) {
+    console.log(error);
+    alert("Image upload failed");
+  }
+};
+
 
 
 
@@ -93,17 +178,38 @@ export default function ProfileScreen() {
         {/* PROFILE */}
         <View style={{ alignItems: 'center', marginTop: 24, marginBottom: 24 }}>
           <View style={{ position: 'relative' }}>
-            <Image
-              source={{ uri: "https://i.pravatar.cc/150" }}
-              style={{ width: 96, height: 96, borderRadius: 48 }}
-            />
-            <View style={{ position: 'absolute', bottom: 0, right: 0, backgroundColor: '#4ade80', padding: 8, borderRadius: 16 }}>
-              <Ionicons name="camera" size={16} color="black" />
-            </View>
+            <TouchableOpacity onPress={pickImage} activeOpacity={0.8}>
+  <Image
+    source={
+      profileImage
+        ? { uri: profileImage }
+        : require("../../assets/images/default-avatar.png")
+    }
+    style={{
+      width: 96,
+      height: 96,
+      borderRadius: 48,
+    }}
+  />
+
+  <View
+    style={{
+      position: "absolute",
+      bottom: 0,
+      right: 0,
+      backgroundColor: "#4ade80",
+      padding: 8,
+      borderRadius: 16,
+    }}
+  >
+    <Ionicons name="camera" size={16} color="black" />
+  </View>
+</TouchableOpacity>
+            
           </View>
 
           <Text style={{ fontSize: 24, fontWeight: 'bold', color: theme.primary, marginTop: 12 }}>
-            {user.name}
+            {user?.name || "User"}
           </Text>
 
           <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4 }}>
@@ -437,6 +543,17 @@ export default function ProfileScreen() {
     </View>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
 
 /* Section */
 const Section = ({ title, theme }) => (

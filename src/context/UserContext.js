@@ -11,6 +11,17 @@ import {
     signOut,
 } from "firebase/auth";
 
+
+import {
+  doc,
+  getDoc,
+} from "firebase/firestore";
+
+import { db } from "../firebase/config";
+
+
+
+
 export const UserContext =
     createContext();
 
@@ -26,16 +37,39 @@ export function UserProvider({
 
     useEffect(() => {
 
-        const unsubscribe =
-            onAuthStateChanged(
-                auth,
-                (currentUser) => {
+        const unsubscribe = onAuthStateChanged(
+            auth,
+            async (currentUser) => {
 
-                    setUser(currentUser);
+                if (currentUser) {
+                    try {
+                        const userRef = doc(
+                            db,
+                            "users",
+                            currentUser.uid
+                        );
 
-                    setLoading(false);
+                        const userSnap = await getDoc(userRef);
+
+                        if (userSnap.exists()) {
+                            setUser({
+                                ...currentUser,
+                                ...userSnap.data(),
+                            });
+                        } else {
+                            setUser(currentUser);
+                        }
+                    } catch (error) {
+                        console.log(error);
+                        setUser(currentUser);
+                    }
+                } else {
+                    setUser(null);
                 }
-            );
+
+                setLoading(false);
+            }
+        );
 
         return unsubscribe;
 

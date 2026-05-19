@@ -5,6 +5,7 @@ import RootNavigator from "./src/navigation/RootNavigator";
 import ThemeProvider, { ThemeContext } from "./src/theme/ThemeContext";
 import { UserProvider } from "./src/context/UserContext";
 import "./src/firebase/test";
+
 function AppContent() {
   const { theme } = useContext(ThemeContext);
   const isDark = theme.background === "#0f172a";

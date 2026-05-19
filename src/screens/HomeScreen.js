@@ -8,19 +8,32 @@ import {
   Switch,
   Alert
 } from 'react-native';
+
+
+
+import { ActivityIndicator } from "react-native";
+import model from "../api/gemini";
 import Header from '../components/Header';
 import { Ionicons } from '@expo/vector-icons';
 import AnimatedToggle from "../components/AnimatedToggle";
 import { useRoute } from "@react-navigation/native";
 import { ThemeContext } from "../theme/ThemeContext";
+import { UserContext } from "../context/UserContext";
 import * as Clipboard from 'expo-clipboard';
 import { savePromptToHistory } from "../storage/historyStorage";
 export default function HomeScreen() {
   const [generatedPrompt, setGeneratedPrompt] = useState("");
+  const [loading, setLoading] = useState(false);
   /* USER PLAN */
-  const isPremiumUser = false;
+  
   const route = useRoute();
   const { theme } = useContext(ThemeContext);
+
+
+  const { user } = useContext(UserContext);
+
+const isPremiumUser =
+  user?.premium || false;
 
   /* INPUT */
   const [input, setInput] = useState("");
@@ -52,44 +65,240 @@ export default function HomeScreen() {
   }, [promptType]);
 
   /* GENERATE */
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
 
-    if (!input.trim()) {
-      Alert.alert("Error", "Please enter your idea first");
-      return;
-    }
+  if (!input.trim()) {
 
-    let finalPrompt = "";
+    Alert.alert(
+      "Error",
+      "Please enter your idea first"
+    );
 
-    if (promptType === "Image") {
+    return;
+  }
 
-      finalPrompt =
-        `${selectedStyle} ${selectedQuality} quality ${aspectRatio} aspect ratio image of ${input}`;
+  try {
 
-    } else if (promptType === "Text") {
+    setLoading(true);
 
-      finalPrompt =
-        `${tone} ${contentLength} content about ${input}`;
+    let aiPrompt = "";
 
-    } else if (promptType === "Video") {
+if (promptType === "Image") {
 
-      finalPrompt =
-        `${camera} cinematic video of ${input} with face consistency ${faceLock ? "enabled" : "disabled"}`;
+  aiPrompt = `
+You are a professional AI image prompt engineer.
 
-    }
+Generate a highly detailed AI image prompt.
 
-    setGeneratedPrompt(finalPrompt);
+STRICT REQUIREMENTS:
+- Style: ${selectedStyle}
+- Quality Level:
+${selectedQuality === "High"
+  ? "Ultra detailed 8K cinematic quality"
+  : "Standard clean quality"}
+- Aspect Ratio: ${aspectRatio}
+
+YOU MUST STRICTLY FOLLOW:
+- The selected aspect ratio
+- The selected visual style
+- The selected quality level
+
+DO NOT ignore the selected settings.
+
+If style is Artistic:
+- make it stylized
+- painterly
+- fantasy-like
+- non-photorealistic
+
+If style is Realistic:
+- make it photorealistic
+- cinematic
+- DSLR-like
+- ultra detailed
+
+If aspect ratio is 1:1:
+- describe a square composition
+
+If aspect ratio is 16:9:
+- describe a cinematic wide landscape composition
+
+If aspect ratio is 9:16:
+- describe a vertical mobile composition
+
+IMPORTANT:
+- Include cinematic lighting
+- Include camera composition
+- Include realistic textures
+- Include environment details
+- Include color grading
+- Include AI art optimized keywords
+- Respect the selected aspect ratio
+- Respect the selected style
+- Respect the selected quality
+
+USER IDEA:
+${input}
+
+Return ONLY the final optimized image prompt.
+`;
+}
+
+else if (promptType === "Text") {
+
+  aiPrompt = `
+You are a professional content writer.
+
+Generate a ${contentLength} ${tone} text prompt.
+
+STRICT REQUIREMENTS:
+- Tone: ${tone}
+- Content Length: ${contentLength}
+
+YOU MUST STRICTLY FOLLOW:
+- The selected tone
+- The selected content length
+
+DO NOT ignore the selected settings.
+
+If content length is Short:
+- keep response concise
+- maximum 2-3 sentences
+
+If content length is Medium:
+- moderate detail
+
+If content length is Long:
+- highly detailed response
+
+If tone is Casual:
+- friendly and conversational
+
+If tone is Professional:
+- formal and polished
+
+If tone is Creative:
+- imaginative and expressive
+
+IMPORTANT:
+- Make it engaging
+- Make it professional
+- Make it creative
+- Keep the selected tone
+- Keep the selected content length
+
+USER IDEA:
+${input}
+
+Return ONLY one final optimized text prompt that strictly follows all selected settings.
+`;
+}
+
+else if (promptType === "Video") {
+
+  aiPrompt = `
+You are a cinematic AI video prompt engineer.
+
+Generate a professional cinematic video prompt.
+
+STRICT REQUIREMENTS:
+- Camera Style:
+${camera === "Zoom"
+  ? "cinematic zoom shot"
+  : camera === "Pan"
+  ? "smooth cinematic pan shot"
+  : camera === "Drone"
+  ? "aerial drone cinematic shot"
+  : "static cinematic shot"}
+- Face Consistency: ${faceLock ? "Enabled" : "Disabled"}
+
+YOU MUST STRICTLY FOLLOW:
+- The selected camera style
+- Face consistency settings
+
+DO NOT ignore the selected settings.
+
+If camera style is Static:
+- describe locked cinematic shots
+
+If camera style is Zoom:
+- describe dramatic cinematic zoom shots
+
+If camera style is Pan:
+- describe smooth horizontal cinematic movement
+
+If camera style is Drone:
+- describe aerial cinematic drone shots
+
+If face consistency is Enabled:
+- maintain the same facial identity
+- preserve character consistency across all shots
+
+If face consistency is Disabled:
+- cinematic freedom is allowed
+
+
+
+
+
+
+IMPORTANT:
+- Include cinematic shots
+- Include lighting details
+- Include camera angles
+- Include scene transitions
+- Include motion details
+- Include atmosphere details
+- Make it visually cinematic
+- Make it optimized for AI video generation
+
+USER IDEA:
+${input}
+
+Return ONLY one final optimized cinematic video prompt that strictly follows all selected settings.
+`;
+}
+
+    const result =
+      await model.generateContent(aiPrompt);
+
+    const response =
+      await result.response;
+
+    const text =
+      response.text();
+
+    setGeneratedPrompt(text);
 
     const newHistoryItem = {
       id: Date.now().toString(),
-      time: new Date().toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+      time: new Date().toLocaleString([], {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }),
       category: promptType,
-      prompt: finalPrompt,
+      prompt: text,
       input: input
     };
 
     savePromptToHistory(newHistoryItem);
-  };
+
+  } catch (error) {
+
+    console.log(error);
+
+    Alert.alert(
+      "Error",
+      "Failed to generate prompt"
+    );
+
+  } finally {
+
+    setLoading(false);
+  }
+};
 
 
   const copyPrompt = async () => {
@@ -118,10 +327,18 @@ export default function HomeScreen() {
     >
 
       <Ionicons
-        name="lock-closed"
-        size={12}
-        color="#f59e0b"
-      />
+  name={
+    isPremiumUser
+      ? "sparkles"
+      : "lock-closed"
+  }
+  size={22}
+  color={
+    isPremiumUser
+      ? theme.primary
+      : "#f59e0b"
+  }
+/>
 
       <Text
         style={{
@@ -651,21 +868,30 @@ export default function HomeScreen() {
               >
 
                 <Ionicons
-                  name="lock-closed"
-                  size={22}
-                  color="#f59e0b"
-                />
+  name={
+    isPremiumUser
+      ? "sparkles"
+      : "lock-closed"
+  }
+  size={22}
+  color={
+    isPremiumUser
+      ? theme.primary
+      : "#f59e0b"
+  }
+/>
 
-                <Text
-                  style={{
-                    marginLeft: 12,
-                    color: theme.text,
-                    fontSize: 16,
-                    fontWeight: '500',
-                  }}
-                >
-                  Face Consistency
-                </Text>
+         <Text
+  style={{
+    marginLeft: 12,
+    color: theme.text,
+    fontSize: 16,
+    fontWeight: '500',
+  }}
+>
+  Face Consistency
+</Text>
+
 
               </View>
 
@@ -746,73 +972,125 @@ export default function HomeScreen() {
               fontSize: 18
             }}
           >
-            Generate Prompt
+            {loading ? "Generating..." : "Generate Prompt"}
           </Text>
         </TouchableOpacity>
 
         {/* GENERATED PROMPT BOX */}
         {
-          generatedPrompt ? (
+  loading ? (
 
-            <View
-              style={{
-                backgroundColor: theme.card,
-                borderWidth: 1,
-                borderColor: theme.border,
-                borderRadius: 24,
-                padding: 20,
-                marginTop: 24,
-              }}
-            >
+    <View
+      style={{
+        backgroundColor: theme.card,
+        borderWidth: 1,
+        borderColor: theme.border,
+        borderRadius: 24,
+        padding: 20,
+        marginTop: 24,
+      }}
+    >
 
-              <Text
-                style={{
-                  color: theme.primary,
-                  fontWeight: 'bold',
-                  marginBottom: 12,
-                  fontSize: 16,
-                }}
-              >
-                Generated Prompt
-              </Text>
+      <Text
+        style={{
+          color: theme.primary,
+          fontWeight: 'bold',
+          marginBottom: 20,
+          fontSize: 16,
+        }}
+      >
+        Generating Prompt...
+      </Text>
 
-              <Text
-                style={{
-                  color: theme.text,
-                  lineHeight: 24,
-                  fontSize: 15,
-                }}
-              >
-                {generatedPrompt}
-              </Text>
+      {[1, 2, 3, 4, 5].map((item) => (
 
-              {/* COPY BUTTON */}
-              <TouchableOpacity
-                onPress={copyPrompt}
-                style={{
-                  backgroundColor: theme.primary,
-                  paddingVertical: 12,
-                  borderRadius: 14,
-                  marginTop: 20,
-                  alignItems: 'center',
-                }}
-              >
+        <View
+          key={item}
+          style={{
+            height: 18,
+            backgroundColor: "#d1d5db",
+            borderRadius: 999,
+            marginBottom: 14,
+            width:
+              item === 2
+                ? "85%"
+                : item === 4
+                ? "75%"
+                : "100%",
+            opacity: 0.7,
+          }}
+        />
 
-                <Text
-                  style={{
-                    color: 'white',
-                    fontWeight: 'bold',
-                  }}
-                >
-                  Copy Prompt
-                </Text>
+      ))}
 
-              </TouchableOpacity>
+      <ActivityIndicator
+        size="small"
+        color={theme.primary}
+        style={{ marginTop: 10 }}
+      />
 
-            </View>
+    </View>
 
-          ) : null
-        }
+  ) : generatedPrompt ? (
+
+    <View
+      style={{
+        backgroundColor: theme.card,
+        borderWidth: 1,
+        borderColor: theme.border,
+        borderRadius: 24,
+        padding: 20,
+        marginTop: 24,
+      }}
+    >
+
+      <Text
+        style={{
+          color: theme.primary,
+          fontWeight: 'bold',
+          marginBottom: 12,
+          fontSize: 16,
+        }}
+      >
+        Generated Prompt
+      </Text>
+
+      <Text
+        style={{
+          color: theme.text,
+          lineHeight: 24,
+          fontSize: 15,
+        }}
+      >
+        {generatedPrompt}
+      </Text>
+
+      <TouchableOpacity
+        onPress={copyPrompt}
+        style={{
+          backgroundColor: theme.primary,
+          paddingVertical: 12,
+          borderRadius: 14,
+          marginTop: 20,
+          alignItems: 'center',
+        }}
+      >
+
+        <Text
+          style={{
+            color: 'white',
+            fontWeight: 'bold',
+          }}
+        >
+          Copy Prompt
+        </Text>
+
+      </TouchableOpacity>
+
+    </View>
+
+  ) : null
+}
 
 
 

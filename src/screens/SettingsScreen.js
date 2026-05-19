@@ -15,7 +15,7 @@ import { ThemeContext } from "../theme/ThemeContext";
 import CountryPicker from "react-native-country-picker-modal";
 import { UserContext } from "../context/UserContext";
 import { clearHistory } from "../storage/historyStorage";
-
+import { updateDoc } from "firebase/firestore";
 
 import { deleteUser } from "firebase/auth";
 
@@ -374,30 +374,68 @@ export default function SettingsScreen() {
 
               {/* SAVE */}
               <TouchableOpacity
-                onPress={() => {
+                onPress={async () => {
 
-                  if (fieldTitle === "Name") {
-                    setUser({
-                      ...user,
-                      name: inputValue,
-                    });
+                  try {
+
+                    const userRef = doc(
+                      db,
+                      "users",
+                      user.uid
+                    );
+
+                    if (fieldTitle === "Name") {
+
+                      await updateDoc(userRef, {
+                        name: inputValue,
+                      });
+
+                      setUser({
+                        ...user,
+                        name: inputValue,
+                      });
+                    }
+
+                    if (fieldTitle === "Phone") {
+
+                      await updateDoc(userRef, {
+                        phone: inputValue,
+                      });
+
+                      setUser({
+                        ...user,
+                        phone: inputValue,
+                      });
+                    }
+
+                    if (fieldTitle === "Email") {
+
+                      await updateDoc(userRef, {
+                        email: inputValue,
+                      });
+
+                      setUser({
+                        ...user,
+                        email: inputValue,
+                      });
+                    }
+
+                    setModalVisible(false);
+
+                    Alert.alert(
+                      "Success",
+                      `${fieldTitle} updated successfully`
+                    );
+
+                  } catch (error) {
+
+                    console.log(error);
+
+                    Alert.alert(
+                      "Error",
+                      "Update failed"
+                    );
                   }
-
-                  if (fieldTitle === "Email") {
-                    setUser({
-                      ...user,
-                      email: inputValue,
-                    });
-                  }
-
-                  if (fieldTitle === "Phone") {
-                    setUser({
-                      ...user,
-                      phone: inputValue,
-                    });
-                  }
-
-                  setModalVisible(false);
                 }}
                 style={{
                   flex: 1,
@@ -539,7 +577,7 @@ export default function SettingsScreen() {
           <Row
             icon="hardware-chip-outline"
             title="Default AI Model"
-            rightText="Kreashiv V4"
+            rightText="Gemini"
             theme={theme}
           />
         </Card>

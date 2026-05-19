@@ -1,5 +1,8 @@
 import {
     createUserWithEmailAndPassword,
+    updateProfile,
+
+
 } from "firebase/auth";
 
 import auth from "./auth";
@@ -27,6 +30,19 @@ const signup = async (
                 email,
                 password
             );
+
+            await updateProfile(auth.currentUser, {
+    displayName: name,
+});
+
+
+console.log("Sending verification mail...");
+
+
+
+console.log("Verification mail sent");
+
+
 
 
         console.log("Signup Success");
