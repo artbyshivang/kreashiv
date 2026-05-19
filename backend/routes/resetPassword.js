@@ -1,90 +1,64 @@
-const express = require("express");
+import express from "express";
+import admin from "../firebaseAdmin.js";
+import { Resend } from "resend";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const router = express.Router();
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-const admin = require("../firebaseAdmin");
+router.post("/send-reset-email", async (req, res) => {
+  try {
+    console.log("Forgot password API hit");
 
-const { Resend } = require("resend");
+    const { email } = req.body;
 
-const resend = new Resend(
-  process.env.RESEND_API_KEY
-);
+    const resetLink =
+      await admin.auth().generatePasswordResetLink(email);
 
-router.post(
-  "/send-reset-email",
-  async (req, res) => {
+    const response = await resend.emails.send({
+      from: "Kreashiv <noreply@kreashiv.cloud>",
+      to: email,
+      subject: "Reset your Kreashiv password",
 
-console.log("Forgot password API hit");
-console.log("Email:", req.body.email);
+      html: `
+        <div style="font-family:sans-serif;padding:20px;">
+          <h2>Reset Password</h2>
+          <p>Click below to reset your password.</p>
 
+          <a
+            href="${resetLink}"
+            style="
+              background:#7c3aed;
+              color:white;
+              padding:12px 20px;
+              text-decoration:none;
+              border-radius:8px;
+              display:inline-block;
+              margin-top:10px;
+            "
+          >
+            Reset Password
+          </a>
+        </div>
+      `,
+    });
 
+    res.status(200).json({
+      success: true,
+      response,
+    });
 
+  } catch (error) {
+    console.log("RESET PASSWORD ERROR:");
+    console.log(error);
 
-    try {
-
-      const { email } = req.body;
-
-      const resetLink =
-        await admin
-          .auth()
-          .generatePasswordResetLink(
-            email
-          );
-
-      await resend.emails.send({
-
-        from:
-          "Kreashiv <noreply@kreashiv.cloud>",
-
-        to: email,
-
-        subject:
-          "Reset Your Password",
-
-        html: `
-          <div style="font-family:sans-serif;padding:20px;">
-
-            <h2>
-              Reset Your Password
-            </h2>
-
-            <p>
-              Click below to reset password.
-            </p>
-
-            <a
-              href="${resetLink}"
-              style="
-                background:#7c3aed;
-                color:white;
-                padding:12px 20px;
-                border-radius:8px;
-                text-decoration:none;
-                display:inline-block;
-              "
-            >
-              Reset Password
-            </a>
-
-          </div>
-        `,
-      });
-
-      res.json({
-        success: true,
-      });
-
-    } catch (error) {
-
-  console.log("RESET PASSWORD ERROR:");
-  console.log(error);
-
-  res.status(500).json({
-    success: false,
-    error: error.message,
-  });
-}
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
   }
-);
+});
 
-module.exports = router;
+export default router;
