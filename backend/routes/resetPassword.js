@@ -1,5 +1,5 @@
 import express from "express";
-import admin from "../firebaseAdmin.js";
+import admin from "../../firebaseAdmin.js";
 import { Resend } from "resend";
 import dotenv from "dotenv";
 
