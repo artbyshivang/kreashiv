@@ -1,8 +1,7 @@
 import {
     createUserWithEmailAndPassword,
     updateProfile,
-
-
+    sendEmailVerification
 } from "firebase/auth";
 
 import auth from "./auth";
@@ -38,7 +37,7 @@ const signup = async (
 
 console.log("Sending verification mail...");
 
-
+await sendEmailVerification(userCredential.user);
 
 console.log("Verification mail sent");
 
