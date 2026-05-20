@@ -39,6 +39,11 @@ import {
   UserContext
 } from "../context/UserContext";
 
+
+import PrivacyPolicyScreen from "../screens/PrivacyPolicyScreen";
+import TermsScreen from "../screens/TermsScreen";
+
+
 const Stack =
   createNativeStackNavigator();
 
@@ -137,6 +142,24 @@ export default function RootNavigator() {
         name="ForgotPassword"
         component={ForgotPasswordScreen}
       />
+
+{/* PRIVACY POLICY */}
+<Stack.Screen
+  name="PrivacyPolicy"
+  component={PrivacyPolicyScreen}
+/>
+
+{/* TERMS */}
+<Stack.Screen
+  name="Terms"
+  component={TermsScreen}
+/>
+
+
+
+
+
+
 
     </Stack.Navigator>
 

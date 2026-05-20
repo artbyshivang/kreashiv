@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Authentication - Kreashiv</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- Firebase SDKs provided by Firebase Hosting -->
+  <script defer src="/__/firebase/10.9.0/firebase-app-compat.js"></script>
+  <script defer src="/__/firebase/10.9.0/firebase-auth-compat.js"></script>
+  <!-- Initialize Firebase -->
+  <script defer src="/__/firebase/init.js"></script>
+
+  <style>
+    :root {
+      /* Kreashiv Brand Colors from tailwind.config.js */
+      --brand-primary: #004839;
+      --brand-accent: #47fd9b;
+      --brand-mint: #a4f2d8;
+      --brand-bg: #f7faf7;
+      --brand-surface: #ffffff;
+      --brand-dark: #181c1b;
+      --brand-gold: #D4AF37;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--brand-bg);
+      color: var(--brand-dark);
+      font-family: 'Manrope', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      background: var(--brand-surface);
+      padding: 40px;
+      border-radius: 24px;
+      box-shadow: 0 10px 40px rgba(0, 72, 57, 0.08);
+      width: 100%;
+      max-width: 420px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      margin: 20px;
+    }
+
+    /* Top decorative glow effect matching the app's premium feel */
+    .container::before {
+      content: '';
+      position: absolute;
+      top: -60px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 200px;
+      height: 200px;
+      background: var(--brand-accent);
+      filter: blur(90px);
+      z-index: 0;
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+    }
+
+    h1 {
+      font-family: 'Space Grotesk', sans-serif;
+      color: var(--brand-primary);
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    p {
+      color: #666;
+      font-size: 15px;
+      line-height: 1.5;
+      margin-bottom: 30px;
+    }
+
+    .input-group {
+      margin-bottom: 24px;
+      text-align: left;
+      display: none; /* Hidden by default */
+    }
+
+    .input-group label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--brand-dark);
+      font-size: 14px;
+    }
+
+    .input-group input {
+      width: 100%;
+      padding: 16px;
+      border: 2px solid #eef2f0;
+      border-radius: 16px;
+      font-family: 'Manrope', sans-serif;
+      font-size: 16px;
+      outline: none;
+      transition: all 0.3s ease;
+      background-color: #fafdfb;
+    }
+
+    .input-group input:focus {
+      border-color: var(--brand-primary);
+      box-shadow: 0 0 0 4px rgba(71, 253, 155, 0.15);
+      background-color: #fff;
+    }
+
+    .btn {
+      background-color: var(--brand-primary);
+      color: var(--brand-surface);
+      border: none;
+      padding: 16px;
+      width: 100%;
+      border-radius: 16px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 18px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: none; /* Hidden by default */
+    }
+
+    .btn:hover {
+      background-color: #00362a;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 72, 57, 0.2);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn:disabled {
+      background-color: #a0b2ae;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .loading {
+      display: inline-block;
+      width: 36px;
+      height: 36px;
+      border: 3px solid rgba(0, 72, 57, 0.1);
+      border-top-color: var(--brand-accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .message {
+      padding: 16px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+      font-size: 14px;
+      font-weight: 500;
+      display: none;
+    }
+
+    .message.error {
+      background-color: #fff0f0;
+      color: #e53935;
+      border: 1px solid #ffcdd2;
+    }
+
+    .message.success {
+      background-color: #f0fdf4;
+      color: var(--brand-primary);
+      border: 1px solid var(--brand-mint);
+    }
+
+    .icon-wrapper {
+      width: 72px;
+      height: 72px;
+      background: var(--brand-primary);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 24px;
+      box-shadow: 0 8px 20px rgba(0, 72, 57, 0.2);
+    }
+
+    .icon-wrapper svg {
+      width: 36px;
+      height: 36px;
+      color: var(--brand-accent);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="content">
+      <div class="icon-wrapper">
+        <svg id="header-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <!-- Shield icon initially -->
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+        </svg>
+      </div>
+
+      <h1 id="header-title">Authenticating...</h1>
+      <p id="header-desc">Please wait while we verify your request.</p>
+
+      <div id="loading-spinner" class="loading"></div>
+
+      <div id="message-box" class="message"></div>
+
+      <!-- Password Reset Form -->
+      <div id="reset-form" class="input-group">
+        <label for="new-password">New Password</label>
+        <input type="password" id="new-password" placeholder="Enter your new password" />
+      </div>
+
+      <button id="action-btn" class="btn">Continue</button>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Small delay to ensure Firebase init.js has executed
+      setTimeout(handleAction, 600);
+    });
+
+    // Helper to extract URL query parameters
+    function getParameterByName(name) {
+      const url = window.location.href;
+      name = name.replace(/[\[\]]/g, '\\$&');
+      const regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)');
+      const results = regex.exec(url);
+      if (!results) return null;
+      if (!results[2]) return '';
+      return decodeURIComponent(results[2].replace(/\+/g, ' '));
+    }
+
+    const mode = getParameterByName('mode');
+    const actionCode = getParameterByName('oobCode');
+
+    const titleEl = document.getElementById('header-title');
+    const descEl = document.getElementById('header-desc');
+    const spinnerEl = document.getElementById('loading-spinner');
+    const messageBox = document.getElementById('message-box');
+    const resetForm = document.getElementById('reset-form');
+    const actionBtn = document.getElementById('action-btn');
+    const iconPath = document.querySelector('#header-icon path');
+
+    function showMessage(msg, isError = false) {
+      messageBox.textContent = msg;
+      messageBox.className = `message ${isError ? 'error' : 'success'}`;
+      messageBox.style.display = 'block';
+    }
+
+    function hideSpinner() {
+      spinnerEl.style.display = 'none';
+    }
+
+    async function handleAction() {
+      // Check if SDK loaded
+      if (typeof firebase === 'undefined') {
+        hideSpinner();
+        titleEl.textContent = 'Connection Error';
+        descEl.textContent = 'Could not load Firebase. Please try again later.';
+        showMessage('Firebase SDK failed to load. Are you testing this locally without emulator?', true);
+        return;
+      }
+
+      if (!mode || !actionCode) {
+        hideSpinner();
+        titleEl.textContent = 'Invalid Request';
+        descEl.textContent = 'The link you followed is missing required information or has expired.';
+        showMessage('Invalid or missing action code.', true);
+        return;
+      }
+
+      const auth = firebase.auth();
+
+      if (mode === 'resetPassword') {
+        // Change icon to lock
+        iconPath.setAttribute('d', 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z');
+        titleEl.textContent = 'Reset Password';
+        descEl.textContent = 'Verifying your reset link...';
+        
+        try {
+          // Verify code
+          const email = await auth.verifyPasswordResetCode(actionCode);
+          hideSpinner();
+          descEl.textContent = `Set a new password for ${email}`;
+          
+          resetForm.style.display = 'block';
+          actionBtn.style.display = 'block';
+          actionBtn.textContent = 'Reset Password';
+
+          // Handle button click
+          actionBtn.onclick = async () => {
+            const newPassword = document.getElementById('new-password').value;
+            if (newPassword.length < 6) {
+              showMessage('Password must be at least 6 characters long.', true);
+              return;
+            }
+
+            actionBtn.disabled = true;
+            actionBtn.textContent = 'Updating Password...';
+            messageBox.style.display = 'none'; // hide previous errors
+            
+            try {
+              await auth.confirmPasswordReset(actionCode, newPassword);
+              resetForm.style.display = 'none';
+              actionBtn.style.display = 'none';
+              
+              // Change icon to checkmark
+              iconPath.setAttribute('d', 'M5 13l4 4L19 7');
+              titleEl.textContent = 'Password Updated!';
+              descEl.textContent = 'Your password has been successfully reset. You can now return to the app and login with your new password.';
+              showMessage('Success! Password reset complete.');
+            } catch (error) {
+              actionBtn.disabled = false;
+              actionBtn.textContent = 'Reset Password';
+              showMessage(error.message, true);
+            }
+          };
+        } catch (error) {
+          hideSpinner();
+          descEl.textContent = 'Invalid link';
+          showMessage('The password reset link is invalid or has expired. Please request a new one from the app.', true);
+        }
+
+      } else if (mode === 'verifyEmail') {
+        // Change icon to envelope check
+        iconPath.setAttribute('d', 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z');
+        titleEl.textContent = 'Verifying Email';
+        descEl.textContent = 'Please wait while we verify your email address...';
+
+        try {
+          await auth.applyActionCode(actionCode);
+          hideSpinner();
+          
+          // Change icon to checkmark
+          iconPath.setAttribute('d', 'M5 13l4 4L19 7');
+          titleEl.textContent = 'Email Verified!';
+          descEl.textContent = 'Thank you! Your email address has been successfully verified.';
+          showMessage('You can now return to the app and continue.');
+        } catch (error) {
+          hideSpinner();
+          titleEl.textContent = 'Verification Failed';
+          descEl.textContent = 'We could not verify your email address.';
+          showMessage('The link is invalid or your email has already been verified.', true);
+        }
+      } else {
+        hideSpinner();
+        titleEl.textContent = 'Unknown Action';
+        descEl.textContent = 'This action is not supported.';
+      }
+    }
+  </script>
+</body>
+</html>

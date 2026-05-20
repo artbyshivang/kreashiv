@@ -521,6 +521,7 @@ const pickImage = async () => {
         <Card theme={theme}>
           {renderRow("help-circle-outline", "Help Center", null, theme)}
           {renderRow("document-text-outline", "Privacy Policy", null, theme)}
+          {renderRow("document-text-outline", "Terms & Conditions", null, theme)}
         </Card>
 
         {/* LOGOUT */}

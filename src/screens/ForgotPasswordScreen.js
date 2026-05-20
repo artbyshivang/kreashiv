@@ -13,7 +13,7 @@ import { ArrowLeft } from 'lucide-react-native';
 
 import { ThemeContext } from '../theme/ThemeContext';
 import auth from '../firebase/auth';
-import { sendPasswordResetEmail } from 'firebase/auth';
+// Removed: import { sendPasswordResetEmail } from 'firebase/auth';
 
 
 
@@ -45,7 +45,18 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
             setLoading(true);
 
-            await sendPasswordResetEmail(auth, email);
+            // Call our custom backend API instead of Firebase default
+            const response = await fetch('https://kreashiv-api.onrender.com/api/send-reset-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+
+            const data = await response.json();
+
+            if (!data.success) {
+                throw new Error(data.error || "Failed to send reset email via Resend");
+            }
 
             Alert.alert(
                 "Success",
@@ -57,10 +68,8 @@ const ForgotPasswordScreen = ({ navigation }) => {
             console.log(error);
 
             let errorMessage = "Unable to send reset email";
-            if (error.code === 'auth/user-not-found') {
-                errorMessage = "No account found with this email.";
-            } else if (error.code === 'auth/invalid-email') {
-                errorMessage = "Invalid email address.";
+            if (error.message) {
+                errorMessage = error.message;
             }
 
             Alert.alert(

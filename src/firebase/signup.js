@@ -1,7 +1,6 @@
 import {
     createUserWithEmailAndPassword,
-    updateProfile,
-    sendEmailVerification
+    updateProfile
 } from "firebase/auth";
 
 import auth from "./auth";
@@ -35,11 +34,21 @@ const signup = async (
 });
 
 
-console.log("Sending verification mail...");
+console.log("Sending verification mail via Resend...");
 
-await sendEmailVerification(userCredential.user);
+// Call our custom backend API instead of Firebase default
+const res = await fetch('https://kreashiv-api.onrender.com/api/send-verification-email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: email })
+});
 
-console.log("Verification mail sent");
+const data = await res.json();
+if (!data.success) {
+    console.log("Failed to send verification email:", data.error);
+} else {
+    console.log("Verification mail sent successfully via Resend");
+}
 
 
 
