@@ -3,8 +3,8 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { Resend } from "resend";
 
-import resetPasswordRoute
-from "./routes/resetPassword.js";
+import resetPasswordRoute from "./routes/resetPassword.js";
+import verifyEmailRoute from "./routes/verifyEmail.js";
 
 dotenv.config();
 
@@ -13,10 +13,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.use(
-  "/api",
-  resetPasswordRoute
-);
+app.use("/api", resetPasswordRoute);
+app.use("/api", verifyEmailRoute);
+
 
 
 
