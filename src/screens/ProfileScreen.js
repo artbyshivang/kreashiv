@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Image,
   Switch,
+  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -15,6 +16,7 @@ import { UserContext } from "../context/UserContext";
 import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
 import auth from "../firebase/auth";
+import CustomAlert from "../components/CustomAlert";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -46,23 +48,30 @@ useEffect(() => {
 }, []);
 
 const loadProfileImage = async () => {
-
   try {
+    if (!user?.uid) return;
 
-    const savedImage =
-      await AsyncStorage.getItem(
-        `profileImage_${user.uid}`
-      );
+    const savedImage = await AsyncStorage.getItem(
+      `profileImage_${user.uid}`
+    );
 
     if (savedImage) {
-
       setProfileImage(savedImage);
     }
-
   } catch (error) {
-
     console.log(error);
   }
+};
+
+
+const [alertVisible, setAlertVisible] = useState(false);
+const [alertTitle, setAlertTitle] = useState("");
+const [alertMessage, setAlertMessage] = useState("");
+
+const showAlert = (title, message) => {
+  setAlertTitle(title);
+  setAlertMessage(message);
+  setAlertVisible(true);
 };
 
 
@@ -79,67 +88,76 @@ const loadProfileImage = async () => {
 
     try {
 
+      showAlert("Success", "Logging Out...");
       await logout();
-
-      alert("Logged Out");
 
     } catch (error) {
 
       console.log(error);
 
-      alert("Logout Failed");
+      showAlert("Error", "Logout Failed");
     }
   };
+
+
+/* remove imagw option */
+
+
+
 
 /*image my upload */
 
 const pickImage = async () => {
   try {
+    if (!user?.uid) return;
 
     const permission =
       await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (!permission.granted) {
-      alert("Gallery permission required");
+      showAlert("Permission", "Gallery permission required");
       return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
-    });
+    const result =
+      await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
 
     if (!result.canceled) {
-
       const imageUri = result.assets[0].uri;
 
       setProfileImage(imageUri);
 
-
       await AsyncStorage.setItem(
-  `profileImage_${user.uid}`,
-  imageUri
-);
+        `profileImage_${user.uid}`,
+        imageUri
+      );
 
-      // future firebase upload yaha hoga
-
+      showAlert("Success", "Profile photo updated");
     }
 
   } catch (error) {
     console.log(error);
-    alert("Image upload failed");
+    showAlert("Error", "Image upload failed");
   }
 };
 
 
 
 
+const [photoOptionsVisible, setPhotoOptionsVisible] = useState(false);
 
+
+const openImageOptions = () => {
+  setPhotoOptionsVisible(true);
+};
 
   const showStats = false;
-  const isPremiumUser = user.premium;
+ const isPremiumUser = user?.premium || false;
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
 
@@ -178,19 +196,35 @@ const pickImage = async () => {
         {/* PROFILE */}
         <View style={{ alignItems: 'center', marginTop: 24, marginBottom: 24 }}>
           <View style={{ position: 'relative' }}>
-            <TouchableOpacity onPress={pickImage} activeOpacity={0.8}>
-  <Image
-    source={
-      profileImage
-        ? { uri: profileImage }
-        : require("../../assets/images/default-avatar.png")
-    }
+
+    <TouchableOpacity onPress={openImageOptions} activeOpacity={0.8}>
+  <View
     style={{
-      width: 96,
-      height: 96,
-      borderRadius: 48,
+      padding: 3,
+      borderRadius: 52,
+      borderWidth: 2,
+      borderColor: theme.primary,
+
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.12,
+      shadowRadius: 8,
+      elevation: 6,
     }}
-  />
+  >
+    <Image
+      source={
+        profileImage
+          ? { uri: profileImage }
+          : require("../../assets/images/default-avatar.png")
+      }
+      style={{
+        width: 96,
+        height: 96,
+        borderRadius: 48,
+      }}
+    />
+  </View>
 
   <View
     style={{
@@ -519,9 +553,28 @@ const pickImage = async () => {
         {/* SUPPORT */}
         <Section title="SUPPORT" theme={theme} />
         <Card theme={theme}>
-          {renderRow("help-circle-outline", "Help Center", null, theme)}
-          {renderRow("document-text-outline", "Privacy Policy", null, theme)}
-          {renderRow("document-text-outline", "Terms & Conditions", null, theme)}
+      
+        <TouchableOpacity
+        onPress={() => navigation.navigate("HelpCenter")}
+        >
+       {renderRow("help-circle-outline", "Help Center", null, theme)}
+      </TouchableOpacity>
+         
+         
+         
+          <TouchableOpacity
+           onPress={() => navigation.navigate("PrivacyPolicy")}
+          >
+            {renderRow("document-text-outline", "Privacy Policy", null, theme)}
+          </TouchableOpacity>
+         
+         
+         
+          <TouchableOpacity
+          onPress={() => navigation.navigate("Terms")}
+          >
+          {renderRow("document-outline", "Terms & Conditions", null, theme)}
+          </TouchableOpacity>
         </Card>
 
         {/* LOGOUT */}
@@ -540,18 +593,114 @@ const pickImage = async () => {
           App Version 1.0.0
         </Text>
 
+
+
+
+
       </ScrollView>
+
+      
+
+
+
+  <CustomAlert
+  visible={alertVisible}
+  title={alertTitle}
+  message={alertMessage}
+  onClose={() => setAlertVisible(false)}
+/>
+
+
+
+  <Modal
+  transparent
+  visible={photoOptionsVisible}
+  animationType="fade"
+>
+  <View
+    style={{
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 24,
+    }}
+  >
+    <View
+      style={{
+        width: "100%",
+        backgroundColor: theme.card,
+        borderRadius: 20,
+        padding: 24,
+      }}
+    >
+      <Text
+        style={{
+          fontSize: 20,
+          fontWeight: "bold",
+          color: theme.text,
+          marginBottom: 20,
+        }}
+      >
+        Profile Photo
+      </Text>
+
+      <TouchableOpacity
+        onPress={() => {
+          setPhotoOptionsVisible(false);
+          pickImage();
+        }}
+      >
+        <Text
+          style={{
+            color: theme.primary,
+            fontSize: 16,
+            marginBottom: 16,
+          }}
+        >
+          Upload New Photo
+        </Text>
+      </TouchableOpacity>
+
+      {profileImage && (
+        <TouchableOpacity
+          onPress={() => {
+            setPhotoOptionsVisible(false);
+            removeImage();
+          }}
+        >
+          <Text
+            style={{
+              color: "red",
+              fontSize: 16,
+              marginBottom: 16,
+            }}
+          >
+            Remove Photo
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      <TouchableOpacity
+        onPress={() => setPhotoOptionsVisible(false)}
+      >
+        <Text
+          style={{
+            color: theme.subText,
+            fontSize: 16,
+          }}
+        >
+          Cancel
+        </Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+</Modal>
+
+
     </View>
   );
 }
-
-
-
-
-
-
-
-
 
 
 
@@ -594,6 +743,9 @@ function renderRow(icon, label, rightText, theme) {
       ) : (
         <Ionicons name="chevron-forward" size={20} color={theme.subText} />
       )}
+    
+    
+     
     </View>
   );
 }

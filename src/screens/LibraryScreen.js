@@ -6,8 +6,7 @@ import {
   FlatList,
   TouchableOpacity,
   TextInput,
-  Modal,
-  Alert
+  Modal
 } from 'react-native';
 import Header from '../components/Header';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,7 +15,7 @@ import { useNavigation } from "@react-navigation/native";
 
 import { saveFolders, getFolders } from "../storage/folderStorage";
 
-
+import CustomAlert from "../components/CustomAlert";
 
 const FolderCard = ({ item, onDelete, onRename, theme }) => {
 
@@ -81,10 +80,15 @@ export default function LibraryScreen() {
   const [newFolder, setNewFolder] = useState("");
 
   const [renameModal, setRenameModal] = useState(false);
-  const [deleteModal, setDeleteModal] = useState(false);
 
   const [selectedFolder, setSelectedFolder] = useState(null);
   const [renameText, setRenameText] = useState("");
+
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState("");
+  const [alertMessage, setAlertMessage] = useState("");
+  const [confirmMode, setConfirmMode] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
 
   useEffect(() => {
 
@@ -103,7 +107,7 @@ export default function LibraryScreen() {
 
   const addFolder = () => {
     if (!newFolder.trim()) {
-      Alert.alert("Missing Name", "Please enter folder name");
+      showAlert("Missing Name", "Please enter folder name");
       return;
     }
 
@@ -112,7 +116,7 @@ export default function LibraryScreen() {
     );
 
     if (exists) {
-      Alert.alert("Duplicate", "Folder already exists");
+      showAlert("Duplicate", "Folder already exists");
       return;
     }
 
@@ -138,7 +142,11 @@ export default function LibraryScreen() {
   };
 
   const saveRename = () => {
-    const updated = folders.map(f =>
+  if (!renameText.trim()) {
+  showAlert("Missing Name", "Please enter folder name");
+  return;
+  }
+  const updated = folders.map(f =>
       f.id === selectedFolder.id ? { ...f, title: renameText } : f
     );
     setFolders(updated);
@@ -147,15 +155,33 @@ export default function LibraryScreen() {
   };
 
   const openDelete = (item) => {
-    setSelectedFolder(item);
-    setDeleteModal(true);
-  };
+  setSelectedFolder(item);
 
-  const confirmDelete = () => {
-    const updated = folders.filter(f => f.id !== selectedFolder.id);
+  setAlertTitle("Delete");
+  setAlertMessage("Delete this folder?");
+  setConfirmMode(true);
+
+  setConfirmAction(() => () => {
+    const updated = folders.filter(
+      f => f.id !== item.id
+    );
+
     setFolders(updated);
     saveFolders(updated);
-    setDeleteModal(false);
+
+    setAlertVisible(false);
+    setConfirmMode(false);
+  });
+
+  setAlertVisible(true);
+};
+
+  
+
+  const showAlert = (title, message) => {
+    setAlertTitle(title);
+    setAlertMessage(message);
+    setAlertVisible(true);
   };
 
   return (
@@ -321,26 +347,21 @@ export default function LibraryScreen() {
         </View>
       </Modal>
 
-      {/* 🔥 DELETE MODAL */}
-      <Modal transparent visible={deleteModal} animationType="fade">
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }}>
-          <View style={{ backgroundColor: theme.card, padding: 24, borderRadius: 16, width: '80%', borderWidth: 1, borderColor: theme.border }}>
+    <CustomAlert
+      visible={alertVisible}
+      title={alertTitle}
+      message={alertMessage}
+      onClose={() => {
+        setAlertVisible(false);
+        setConfirmMode(false);
+      }}
 
-            <Text style={{ fontWeight: 'bold', color: theme.text, marginBottom: 16, fontSize: 18 }}>Delete this folder?</Text>
-
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
-              <TouchableOpacity onPress={() => setDeleteModal(false)}>
-                <Text style={{ marginRight: 24, color: theme.subText, fontWeight: '600' }}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity onPress={confirmDelete}>
-                <Text style={{ color: '#ef4444', fontWeight: 'bold' }}>Delete</Text>
-              </TouchableOpacity>
-            </View>
-
-          </View>
-        </View>
-      </Modal>
+      showCancel={confirmMode}
+      confirmText="Delete"
+      cancelText="Cancel"
+      onConfirm={confirmAction}
+      danger={true}
+    />
 
     </View>
   );

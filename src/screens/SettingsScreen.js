@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,8 +7,10 @@ import {
   Switch,
   Modal,
   TextInput,
-  Alert,
+  Image,
 } from "react-native";
+
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { ThemeContext } from "../theme/ThemeContext";
@@ -16,6 +18,7 @@ import CountryPicker from "react-native-country-picker-modal";
 import { UserContext } from "../context/UserContext";
 import { clearHistory } from "../storage/historyStorage";
 import { updateDoc } from "firebase/firestore";
+import CustomAlert from "../components/CustomAlert";
 
 import { deleteUser } from "firebase/auth";
 
@@ -24,9 +27,13 @@ import auth from "../firebase/auth";
 import {
   doc,
   deleteDoc,
+  getDoc,
 } from "firebase/firestore";
 
 import { db } from "../firebase/config";
+
+
+
 
 
 
@@ -45,6 +52,46 @@ export default function SettingsScreen() {
 
   const { theme } = useContext(ThemeContext);
   const { user, setUser } = useContext(UserContext);
+
+  const [profileImage, setProfileImage] = useState(null);
+
+
+const [alertVisible, setAlertVisible] = useState(false);
+const [alertTitle, setAlertTitle] = useState("");
+const [alertMessage, setAlertMessage] = useState("");
+
+const showAlert = (title, message) => {
+  setAlertTitle(title);
+  setAlertMessage(message);
+  setAlertVisible(true);
+};
+
+const [confirmVisible, setConfirmVisible] = useState(false);
+const [confirmTitle, setConfirmTitle] = useState("");
+const [confirmMessage, setConfirmMessage] = useState("");
+const [confirmAction, setConfirmAction] = useState(null);
+const [isDanger, setIsDanger] = useState(false);
+
+
+const showConfirm = (
+  title,
+  message,
+  onConfirm,
+  danger = false
+) => {
+  setConfirmTitle(title);
+  setConfirmMessage(message);
+  setConfirmAction(() => onConfirm);
+  setIsDanger(danger);
+  setConfirmVisible(true);
+};
+
+
+
+
+
+
+
 
   const openEditor = (type) => {
     setFieldTitle(type);
@@ -65,98 +112,126 @@ export default function SettingsScreen() {
   };
 
   const handleClearHistory = () => {
+  showConfirm(
+    "Clear History",
+    "Are you sure you want to delete all search history?",
+    async () => {
+      try {
+        await clearHistory();
 
-    Alert.alert(
-      "Clear History",
-      "Are you sure you want to delete all search history?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
+        setConfirmVisible(false);
 
-        {
-          text: "Clear",
-          style: "destructive",
+        showAlert(
+          "Success",
+          "History cleared successfully."
+        );
 
-          onPress: async () => {
+      } catch (error) {
+        console.log(error);
 
-            await clearHistory();
+        setConfirmVisible(false);
 
-            Alert.alert(
-              "Success",
-              "History cleared successfully."
-            );
-          },
-        },
-      ]
-    );
-  };
+        showAlert(
+          "Error",
+          "Failed to clear history."
+        );
+      }
+    }
+  );
+};
 
 
   const handleDeleteAccount = () => {
+  showConfirm(
+    "Delete Account",
+    "This action cannot be undone.",
+    async () => {
+      try {
+        const currentUser = auth.currentUser;
 
-    Alert.alert(
-      "Delete Account",
-      "This action cannot be undone.",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
+        if (!currentUser) return;
 
-        {
-          text: "Delete",
-          style: "destructive",
+        /* DELETE FIRESTORE DATA */
+        await deleteDoc(
+          doc(db, "users", currentUser.uid)
+        );
 
-          onPress: async () => {
+        /* DELETE AUTH ACCOUNT */
+        await deleteUser(currentUser);
 
-            try {
+        /* LOGOUT */
+        setUser(null);
 
-              const currentUser =
-                auth.currentUser;
+        setConfirmVisible(false);
 
-              if (!currentUser) {
-                return;
-              }
+        showAlert(
+          "Success",
+          "Account deleted successfully."
+        );
 
-              /* DELETE FIRESTORE DATA */
+      } catch (error) {
+        console.log(error);
 
-              await deleteDoc(
-                doc(
-                  db,
-                  "users",
-                  currentUser.uid
-                )
-              );
+        setConfirmVisible(false);
 
-              /* DELETE AUTH ACCOUNT */
+        showAlert(
+          "Error",
+          error.message
+        );
+      }
+    },
+    true
+  );
+};
 
-              await deleteUser(currentUser);
 
-              /* LOGOUT */
 
-              setUser(null);
+const loadProfileImage = async () => {
+  try {
+    if (!user?.uid) return;
 
-              Alert.alert(
-                "Success",
-                "Account deleted successfully."
-              );
-
-            } catch (error) {
-
-              console.log(error);
-
-              Alert.alert(
-                "Error",
-                error.message
-              );
-            }
-          },
-        },
-      ]
+    const savedImage = await AsyncStorage.getItem(
+      `profileImage_${user.uid}`
     );
-  };
+
+    setProfileImage(savedImage || null);
+
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+const loadNotificationSetting = async () => {
+  try {
+    if (!user?.uid) return;
+
+    const userRef = doc(db, "users", user.uid);
+    const userSnap = await getDoc(userRef);
+
+    if (userSnap.exists()) {
+      const userData = userSnap.data();
+
+      setNotifications(
+        userData.notificationsEnabled ?? true
+      );
+    }
+
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+
+
+
+
+
+
+useEffect(() => {
+  loadProfileImage();
+  loadNotificationSetting();
+}, [user]);
+
 
 
 
@@ -193,7 +268,29 @@ export default function SettingsScreen() {
           Settings
         </Text>
 
-        <Ionicons name="person-circle-outline" size={26} color={theme.primary} />
+      
+      
+       <TouchableOpacity onPress={() => navigation.navigate("Profile")}>
+  {profileImage ? (
+    <Image
+      source={{ uri: profileImage }}
+      style={{
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+      }}
+    />
+  ) : (
+    <Ionicons
+      name="person-circle-outline"
+      size={26}
+      color={theme.primary}
+    />
+  )}
+</TouchableOpacity> 
+
+
+
       </View>
 
 
@@ -528,7 +625,22 @@ export default function SettingsScreen() {
             </View>
 
             <TouchableOpacity
-              onPress={() => setNotifications(!notifications)}
+              onPress={async () => {
+  const newValue = !notifications;
+
+  setNotifications(newValue);
+
+  try {
+    await updateDoc(
+      doc(db, "users", user.uid),
+      {
+        notificationsEnabled: newValue,
+      }
+    );
+  } catch (error) {
+    console.log(error);
+  }
+}}
               activeOpacity={0.8}
               style={{
                 width: 52,
@@ -590,7 +702,30 @@ export default function SettingsScreen() {
         </TouchableOpacity>
 
       </ScrollView>
-    </View>
+
+
+    {/* NORMAL ALERT */}
+    <CustomAlert
+      visible={alertVisible}
+      title={alertTitle}
+      message={alertMessage}
+      onClose={() => setAlertVisible(false)}
+    />
+
+    {/* CONFIRM ALERT */}
+    <CustomAlert
+      visible={confirmVisible}
+      title={confirmTitle}
+      message={confirmMessage}
+      onClose={() => setConfirmVisible(false)}
+      showCancel={true}
+      confirmText={isDanger ? "Delete" : "Confirm"}
+      cancelText="Cancel"
+      danger={isDanger}
+      onConfirm={confirmAction}
+    />
+
+</View>
   );
 }
 

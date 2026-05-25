@@ -1,6 +1,6 @@
 import {
     createUserWithEmailAndPassword,
-    updateProfile
+    updateProfile,
 } from "firebase/auth";
 
 import auth from "./auth";
@@ -72,8 +72,6 @@ if (!data.success) {
                 createdAt: new Date(),
             }
         );
-
-
 
         return {
             success: true,

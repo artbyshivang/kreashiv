@@ -11,6 +11,9 @@ import { ThemeContext } from "../theme/ThemeContext";
 import ProfileScreen
   from "../screens/ProfileScreen";
 
+import VerifyEmailScreen
+  from "../screens/VerifyEmailScreen";
+
 import SettingsScreen
   from "../screens/SettingsScreen";
 
@@ -42,7 +45,7 @@ import {
 
 import PrivacyPolicyScreen from "../screens/PrivacyPolicyScreen";
 import TermsScreen from "../screens/TermsScreen";
-
+import HelpCenterScreen from "../screens/HelpCenterScreen";
 
 const Stack =
   createNativeStackNavigator();
@@ -80,62 +83,70 @@ export default function RootNavigator() {
       }}
     >
 
-      {
-        !user ? (
-          <>
-            {/* LOGIN */}
-            <Stack.Screen
-              name="Login"
-              component={LoginScreen}
-            />
+     {
+  !user ? (
+    <>
+      {/* LOGIN */}
+      <Stack.Screen
+        name="Login"
+        component={LoginScreen}
+      />
 
-            {/* SIGNUP */}
-            <Stack.Screen
-              name="Signup"
-              component={SignupScreen}
-            />
+      {/* SIGNUP */}
+      <Stack.Screen
+        name="Signup"
+        component={SignupScreen}
+      />
+    </>
+  ) : !user.emailVerified ? (
+    <>
+      {/* VERIFY EMAIL */}
+      <Stack.Screen
+        name="VerifyEmail"
+        component={VerifyEmailScreen}
+      />
+    </>
+  ) : (
+    <>
+      {/* MAIN APP */}
+      <Stack.Screen
+        name="MainTabs"
+        component={TabNavigator}
+      />
 
-          </>
-        ) : (
-          <>
-            {/* MAIN APP */}
-            <Stack.Screen
-              name="MainTabs"
-              component={TabNavigator}
-            />
+      {/* PROFILE */}
+      <Stack.Screen
+        name="Profile"
+        component={ProfileScreen}
+      />
 
-            {/* PROFILE */}
-            <Stack.Screen
-              name="Profile"
-              component={ProfileScreen}
-            />
+      {/* SETTINGS */}
+      <Stack.Screen
+        name="Settings"
+        component={SettingsScreen}
+      />
 
-            {/* SETTINGS */}
-            <Stack.Screen
-              name="Settings"
-              component={SettingsScreen}
-            />
+      {/* FOLDER */}
+      <Stack.Screen
+        name="Folder"
+        component={FolderScreen}
+      />
 
-            {/* FOLDER */}
-            <Stack.Screen
-              name="Folder"
-              component={FolderScreen}
-            />
+      {/* PREMIUM */}
+      <Stack.Screen
+        name="Premium"
+        component={PremiumScreen}
+      />
 
-            {/* PREMIUM */}
-            <Stack.Screen
-              name="Premium"
-              component={PremiumScreen}
-            />
+      {/* MANAGE PLAN */}
+      <Stack.Screen
+        name="ManagePlan"
+        component={ManagePlanScreen}
+      />
+    </>
+  )
+}
 
-            {/* MANAGE PLAN */}
-            <Stack.Screen
-              name="ManagePlan"
-              component={ManagePlanScreen}
-            />
-          </>
-        )
-      }
 
       {/* FORGOT PASSWORD */}
       <Stack.Screen
@@ -155,8 +166,11 @@ export default function RootNavigator() {
   component={TermsScreen}
 />
 
-
-
+{/* HelpCenter */}
+<Stack.Screen
+  name="HelpCenter"
+  component={HelpCenterScreen}
+/>
 
 
 

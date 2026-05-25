@@ -1,4 +1,5 @@
 import React, { useState, useContext } from 'react';
+import { Image, useColorScheme } from "react-native";
 import {
     View,
     Text,
@@ -18,6 +19,7 @@ import {
     Phone,
 } from 'lucide-react-native';
 
+import CustomAlert from "../components/CustomAlert";
 
 import CountryPicker from "react-native-country-picker-modal";
 
@@ -27,6 +29,18 @@ import signup from "../firebase/signup";
 
 const SignupScreen = ({ navigation }) => {
     const { theme } = useContext(ThemeContext);
+   
+    const darkLogo = require("../../assets/images/full logo.png");
+    const lightLogo = require("../../assets/images/full logo light.png");
+
+    const colorScheme = useColorScheme();
+   
+    const [alertVisible, setAlertVisible] = useState(false);
+    const [alertTitle, setAlertTitle] = useState("");
+    const [alertMessage, setAlertMessage] = useState("");
+   
+   
+   
     const [passwordVisible, setPasswordVisible] = useState(false);
 
     const [name, setName] = useState("");
@@ -39,6 +53,13 @@ const SignupScreen = ({ navigation }) => {
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
 
+   const showAlert = (title, message) => {
+  setAlertTitle(title);
+  setAlertMessage(message);
+  setAlertVisible(true);
+};
+   
+   
     const handleSignup = async () => {
 
         const allowedDomains = [
@@ -55,30 +76,31 @@ const SignupScreen = ({ navigation }) => {
 
         if (!allowedDomains.includes(emailDomain)) {
 
-            alert(
-                "Please use Gmail, Yahoo, iCloud, Outlook or Hotmail email."
-            );
+            showAlert(
+  "Invalid Email",
+  "Please use Gmail, Yahoo, iCloud, Outlook or Hotmail email."
+);
 
             return;
         }
 
         if (!name || !phone || !email || !password) {
 
-            alert("Please fill all fields");
+            showAlert("Error", "Please fill all fields");
 
             return;
         }
 
         if (phone.replace(/\s/g, "").length < 10) {
 
-            alert("Please enter valid phone number");
+            showAlert("Invalid Number", "Please enter valid phone number");
 
             return;
         }
 
         if (password.length < 6) {
 
-            alert("Password must be at least 6 characters");
+            showAlert("Weak Password", "Password must be at least 6 characters");
 
             return;
         }
@@ -96,20 +118,21 @@ const SignupScreen = ({ navigation }) => {
 
     if (result.success) {
 
-        alert(
-            "Verification email sent. Please check your inbox."
+        showAlert(
+        "Verify Email",
+         "Verification email sent. Please check your inbox."
         );
 
     } else {
 
-        alert(result.error);
+        showAlert("Signup Failed", result.error);
     }
 
 } catch (error) {
 
     console.log(error);
 
-    alert("Something went wrong");
+    showAlert("Error", "Something went wrong");
 
 } finally {
 
@@ -139,6 +162,28 @@ const SignupScreen = ({ navigation }) => {
                         padding: 20,
                     }}
                 >
+
+                {/* Logo */}
+                <View
+                style={{
+                    alignItems: "center",
+                    marginBottom: 10,
+                }}
+                >
+                <Image
+                    source={colorScheme === "dark" ? darkLogo : lightLogo}
+                    style={{
+                    width: 140,
+                    height: 45,
+                    resizeMode: "contain",
+                    }}
+                />
+                </View>
+
+
+
+
+
 
                     {/* Heading */}
                     <Text
@@ -421,6 +466,7 @@ const SignupScreen = ({ navigation }) => {
                     {/* Create Account Button */}
                     <TouchableOpacity
                         onPress={handleSignup}
+                        disabled={loading}
                         style={{
                             backgroundColor: theme.primary,
                             height: 52,
@@ -484,6 +530,15 @@ const SignupScreen = ({ navigation }) => {
 
                     </View>
 
+                    <CustomAlert
+                    visible={alertVisible}
+                    title={alertTitle}
+                    message={alertMessage}
+                    onClose={() => setAlertVisible(false)}
+                    />
+              
+              
+              
                 </View>
 
             </ScrollView>

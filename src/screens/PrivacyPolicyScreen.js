@@ -11,50 +11,45 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { ThemeContext } from "../theme/ThemeContext";
 
-export default function TermsScreen() {
+export default function PrivacyPolicyScreen() {
   const navigation = useNavigation();
   const { theme } = useContext(ThemeContext);
 
   const sections = [
     {
-      icon: "apps-outline",
-      title: "App Usage",
-      text: "By using Kreashiv, you agree to use the app responsibly and in compliance with applicable laws.",
+      icon: "person-outline",
+      title: "Information We Collect",
+      text: "We may collect your email address, profile details, prompt history, subscription information, and app usage data to improve Kreashiv services.",
     },
     {
-      icon: "star-outline",
-      title: "Free & Premium Plans",
-      text: "Free users may have limited access. Premium users receive additional features based on subscription plans.",
+      icon: "lock-closed-outline",
+      title: "Account Information",
+      text: "Your account details such as name, email, and profile preferences are securely stored for login and personalization.",
+    },
+    {
+      icon: "document-text-outline",
+      title: "Prompt & Content Storage",
+      text: "Prompts and generated content may be stored to provide history, personalization, and improve app functionality.",
     },
     {
       icon: "card-outline",
-      title: "Payments",
-      text: "Premium subscription charges are billed according to your selected plan and handled by secure payment providers.",
+      title: "Subscription & Payments",
+      text: "Premium subscriptions are processed securely by trusted payment providers. Kreashiv does not store sensitive card details.",
     },
     {
-      icon: "person-outline",
-      title: "User Responsibilities",
-      text: "Users must not misuse the app, abuse services, or engage in harmful activity.",
+      icon: "shield-checkmark-outline",
+      title: "Security",
+      text: "We use industry-standard security practices to protect your data, although no system can guarantee complete security.",
     },
     {
-      icon: "refresh-outline",
-      title: "Refund Policy",
-      text: "Refunds are subject to applicable payment provider policies and platform billing terms.",
-    },
-    {
-      icon: "close-circle-outline",
-      title: "Account Termination",
-      text: "Kreashiv may suspend or terminate accounts that violate these terms.",
-    },
-    {
-      icon: "warning-outline",
-      title: "Limitation of Liability",
-      text: "Kreashiv is not liable for indirect damages resulting from app use.",
+      icon: "trash-outline",
+      title: "Account Deletion",
+      text: "Users may request account deletion and personal data removal as permitted by law.",
     },
     {
       icon: "mail-outline",
-      title: "Contact",
-      text: "For legal questions contact support@kreashiv.cloud",
+      title: "Contact Us",
+      text: "For privacy concerns, contact us at support@kreashiv.cloud",
     },
   ];
 
@@ -152,7 +147,7 @@ export default function TermsScreen() {
                   marginLeft: 16,
                 }}
               >
-                Terms & Conditions
+                Privacy Policy
               </Text>
             </View>
 
@@ -177,7 +172,7 @@ export default function TermsScreen() {
                 }}
               >
                 <Ionicons
-                  name="document-text"
+                  name="shield-checkmark"
                   size={34}
                   color={theme.primary}
                 />
@@ -191,7 +186,7 @@ export default function TermsScreen() {
                   marginBottom: 8,
                 }}
               >
-                Terms of Use
+                Your Privacy Matters
               </Text>
 
               <Text
@@ -201,7 +196,7 @@ export default function TermsScreen() {
                   lineHeight: 22,
                 }}
               >
-                Please review the rules and conditions for using Kreashiv.
+                Kreashiv respects your privacy and protects your personal data.
               </Text>
             </View>
           </>

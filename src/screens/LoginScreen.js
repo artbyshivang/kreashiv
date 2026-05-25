@@ -1,4 +1,5 @@
 import React, { useState, useContext } from 'react';
+import { Image, useColorScheme } from "react-native";
 import {
     View,
     Text,
@@ -18,6 +19,7 @@ import {
 
 import { ThemeContext } from '../theme/ThemeContext';
 import login from "../firebase/login";
+import CustomAlert from "../components/CustomAlert";
 
 const LoginScreen = ({ navigation }) => {
     const { theme } = useContext(ThemeContext);
@@ -26,41 +28,67 @@ const LoginScreen = ({ navigation }) => {
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
 
+const darkLogo = require("../../assets/images/full logo.png");
+const lightLogo = require("../../assets/images/full logo light.png");
 
-    const handleLogin = async () => {
+const colorScheme = useColorScheme();
 
-        if (!email || !password) {
-            alert("Please fill all fields");
-            return;
-        }
-
-        try {
-
-            setLoading(true);
-
-            const result = await login(email, password);
-
-            if (result.success) {
-
-                alert("Login Successful");
+const [alertVisible, setAlertVisible] = useState(false);
+const [alertTitle, setAlertTitle] = useState("");
+const [alertMessage, setAlertMessage] = useState("");
 
 
+  const handleLogin = async () => {
 
-            } else {
+    if (!email || !password) {
+        showAlert("Error", "Please fill all fields");
+        return;
+    }
 
-                alert(result.error);
+    try {
+        setLoading(true);
+
+        const result = await login(email, password);
+
+        if (result.success) {
+   return;
+}
+        else {
+            if (result.error === "auth/invalid-credential") {
+                showAlert("Login Failed", "Incorrect email or password");
             }
-
-        } catch (error) {
-
-            console.log(error);
-            alert("Something went wrong");
-
-        } finally {
-
-            setLoading(false);
+            else if (result.error === "auth/user-not-found") {
+                showAlert("Login Failed", "No account found with this email");
+            }
+            else if (result.error === "auth/wrong-password") {
+               showAlert("Login Failed", "Incorrect password");
+            }
+            else if (result.error === "auth/invalid-email") {
+                showAlert("Login Failed", "Invalid email address");
+            }
+            else if (result.error === "Please verify your email first.") {
+                showAlert("Verification Required", "Please verify your email first");
+            }
+            else {
+               showAlert("Login Failed", "Please try again");
+            }
         }
-    };
+
+    } catch (error) {
+        console.log(error);
+        showAlert("Error", "Something went wrong");
+
+    } finally {
+        setLoading(false);
+    }
+};
+
+const showAlert = (title, message) => {
+  setAlertTitle(title);
+  setAlertMessage(message);
+  setAlertVisible(true);
+};
+
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
@@ -82,6 +110,28 @@ const LoginScreen = ({ navigation }) => {
                         padding: 20,
                     }}
                 >
+{/* Logo */}
+<View
+  style={{
+    alignItems: "center",
+    marginBottom: 10,
+  }}
+>
+  <Image
+    source={colorScheme === "dark" ? darkLogo : lightLogo}
+    style={{
+      width: 140,
+      height: 45,
+      resizeMode: "contain",
+    }}
+  />
+</View>
+
+
+
+
+
+
 
                     {/* Heading */}
                     <Text
@@ -238,7 +288,8 @@ const LoginScreen = ({ navigation }) => {
 
                     {/* Login Button */}
                     <TouchableOpacity
-                        onPress={handleLogin}
+                    onPress={handleLogin}
+                    disabled={loading}
                         style={{
                             backgroundColor: theme.primary,
                             height: 52,
@@ -302,7 +353,12 @@ const LoginScreen = ({ navigation }) => {
 
                     </View>
 
-
+<CustomAlert
+  visible={alertVisible}
+  title={alertTitle}
+  message={alertMessage}
+  onClose={() => setAlertVisible(false)}
+/>
 
 
                 </View>

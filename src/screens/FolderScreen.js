@@ -14,7 +14,7 @@ import {
     getHistory
 } from "../storage/historyStorage";
 
-
+import CustomAlert from "../components/CustomAlert";
 
 import { ThemeContext }
     from "../theme/ThemeContext";
@@ -57,8 +57,13 @@ export default function FolderScreen({ route, navigation }) {
     const [historyPrompts, setHistoryPrompts] =
         useState([]);
 
-    const [addModal, setAddModal] =
-        useState(false);
+
+    const [addModal, setAddModal] = useState(false);
+    
+    const [showDeleteAlert, setShowDeleteAlert] = useState(false);
+    const [selectedPrompt, setSelectedPrompt] = useState(null);
+    const [selectedIndex, setSelectedIndex] = useState(null);
+
 
 
 
@@ -174,71 +179,45 @@ export default function FolderScreen({ route, navigation }) {
 
     /* DELETE PROMPT */
 
-    const deletePrompt = async (
-        indexToDelete,
-        promptItem
-    ) => {
+    const deletePrompt = (
+    indexToDelete,
+    promptItem
+) => {
+    setSelectedIndex(indexToDelete);
+    setSelectedPrompt(promptItem);
+    setShowDeleteAlert(true);
+};
 
-        Alert.alert(
-            "Delete Prompt",
-            "Remove this prompt?",
-            [
-                {
-                    text: "Cancel",
-                },
 
-                {
-                    text: "Delete",
-                    style: "destructive",
+const confirmDeletePrompt = async () => {
+    try {
+        const data = await AsyncStorage.getItem("FOLDER_PROMPTS");
 
-                    onPress: async () => {
+        const parsed = data ? JSON.parse(data) : {};
 
-                        try {
-
-                            /* REMOVE FROM FOLDER */
-
-                            const data =
-                                await AsyncStorage.getItem(
-                                    "FOLDER_PROMPTS"
-                                );
-
-                            const parsed =
-                                data ? JSON.parse(data) : {};
-
-                            const updatedPrompts =
-                                prompts.filter(
-                                    (_, index) =>
-                                        index !== indexToDelete
-                                );
-
-                            parsed[folder.id] =
-                                updatedPrompts;
-
-                            await AsyncStorage.setItem(
-                                "FOLDER_PROMPTS",
-                                JSON.stringify(parsed)
-                            );
-
-                            setPrompts(updatedPrompts);
-
-                            /* REMOVE FROM HISTORY */
-
-                            await deletePromptFromHistory(
-                                promptItem.id
-                            );
-
-                        } catch (e) {
-
-                            console.log(e);
-
-                        }
-
-                    }
-                }
-            ]
+        const updatedPrompts = prompts.filter(
+            (_, index) => index !== selectedIndex
         );
 
-    };
+        parsed[folder.id] = updatedPrompts;
+
+        await AsyncStorage.setItem(
+            "FOLDER_PROMPTS",
+            JSON.stringify(parsed)
+        );
+
+        setPrompts(updatedPrompts);
+
+        await deletePromptFromHistory(
+            selectedPrompt.id
+        );
+
+        setShowDeleteAlert(false);
+
+    } catch (e) {
+        console.log(e);
+    }
+};
 
     const openAddPromptModal = async () => {
 
@@ -795,7 +774,19 @@ export default function FolderScreen({ route, navigation }) {
 
             </Modal>
 
-
+       
+       
+        <CustomAlert
+            visible={showDeleteAlert}
+            title="Delete Prompt?"
+            message="Are you sure you want to delete this prompt?"
+            onClose={() => setShowDeleteAlert(false)}
+            showCancel={true}
+            cancelText="Cancel"
+            confirmText="Delete"
+            danger={true}
+            onConfirm={confirmDeletePrompt}
+        />
 
 
 

@@ -1,4 +1,5 @@
 import React, { useContext, useState } from 'react';
+import { Image, useColorScheme } from "react-native";
 
 import {
     View,
@@ -6,10 +7,12 @@ import {
     TextInput,
     TouchableOpacity,
     SafeAreaView,
-    Alert,
+    
 } from 'react-native';
 
 import { ArrowLeft } from 'lucide-react-native';
+
+import CustomAlert from "../components/CustomAlert";
 
 import { ThemeContext } from '../theme/ThemeContext';
 import auth from '../firebase/auth';
@@ -25,18 +28,34 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
     const { theme } = useContext(ThemeContext);
 
+    const darkLogo = require("../../assets/images/full logo.png");
+    const lightLogo = require("../../assets/images/full logo light.png");
+
+    const colorScheme = useColorScheme();
+
+
+    const [alertVisible, setAlertVisible] = useState(false);
+    const [alertTitle, setAlertTitle] = useState("");
+    const [alertMessage, setAlertMessage] = useState("");
+   
+   
+   
     const [email, setEmail] = useState("");
 
     const [loading, setLoading] = useState(false);
+
+    const showAlert = (title, message) => {
+    setAlertTitle(title);
+    setAlertMessage(message);
+    setAlertVisible(true);
+    };
+    
 
     const handleForgotPassword = async () => {
 
         if (!email) {
 
-            Alert.alert(
-                "Error",
-                "Please enter email"
-            );
+         showAlert("Error", "Please enter email");   
 
             return;
         }
@@ -58,9 +77,9 @@ const ForgotPasswordScreen = ({ navigation }) => {
                 throw new Error(data.error || "Failed to send reset email via Resend");
             }
 
-            Alert.alert(
-                "Success",
-                "Reset email sent. Please check inbox."
+            showAlert(
+            "Success",
+            "Reset email sent. Please check inbox."
             );
 
         } catch (error) {
@@ -72,10 +91,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
                 errorMessage = error.message;
             }
 
-            Alert.alert(
-                "Error",
-                errorMessage
-            );
+            showAlert("Error", errorMessage);
 
         } finally {
 
@@ -119,6 +135,29 @@ const ForgotPasswordScreen = ({ navigation }) => {
                     />
 
                 </TouchableOpacity>
+
+               
+               
+                    {/* Logo */}
+                    <View
+                    style={{
+                        alignItems: "center",
+                        marginBottom: 10,
+                    }}
+                    >
+                    <Image
+                        source={colorScheme === "dark" ? darkLogo : lightLogo}
+                        style={{
+                        width: 140,
+                        height: 45,
+                        resizeMode: "contain",
+                        }}
+                    />
+                    </View>
+
+
+
+
 
                 <Text
                     style={{
@@ -202,6 +241,15 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
                 </TouchableOpacity>
 
+           <CustomAlert
+            visible={alertVisible}
+            title={alertTitle}
+            message={alertMessage}
+            onClose={() => setAlertVisible(false)}
+            />
+           
+           
+           
             </View>
 
         </SafeAreaView>

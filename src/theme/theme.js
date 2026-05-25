@@ -1,10 +1,11 @@
 export const lightTheme = {
-    background: "#f7faf7",
-    card: "#ffffff",
-    text: "#181c1b",
-    primary: "#004839",
-    border: "#f3f4f6", // gray-100
-    subText: "#6b7280", // gray-500
+  
+    background: "#e8fdf0",   // soft mint background
+    card: "#ffffff",         // clean white cards
+    text: "#0f2e24",         // dark premium green text
+    primary: "#006b4f",      // rich premium green
+    border: "#d6f5df",       // soft green border
+    subText: "#5f7d73",      // elegant muted text
 };
 
 export const darkTheme = {

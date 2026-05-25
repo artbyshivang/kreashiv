@@ -5,13 +5,12 @@ import {
   ScrollView,
   FlatList,
   TouchableOpacity,
-  Alert
 } from 'react-native';
 
 import AsyncStorage
   from "@react-native-async-storage/async-storage";
 
-
+import CustomAlert from "../components/CustomAlert";
 import Header from '../components/Header';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -138,7 +137,22 @@ export default function HistoryScreen() {
 
   const [historyData, setHistoryData] = useState([]);
 
+  const [alertVisible, setAlertVisible] = useState(false);
+
+  const [alertTitle, setAlertTitle] = useState("");
+
+  const [alertMessage, setAlertMessage] = useState("");
+
+  const [confirmMode, setConfirmMode] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
+
   const [folders, setFolders] = useState([]);
+  
+  const showAlert = (title, message) => {
+  setAlertTitle(title);
+  setAlertMessage(message);
+  setAlertVisible(true);
+};
 
   const [folderModal, setFolderModal] =
     useState(false);
@@ -158,7 +172,7 @@ export default function HistoryScreen() {
 
     if (result === "EXISTS") {
 
-      Alert.alert(
+      showAlert(
         "Duplicate Prompt",
         "This prompt already exists in the folder."
       );
@@ -166,7 +180,7 @@ export default function HistoryScreen() {
       return;
     }
 
-    Alert.alert(
+    showAlert(
       "Success",
       "Prompt added to folder"
     );
@@ -203,9 +217,9 @@ export default function HistoryScreen() {
   const handleCopy = async (text) => {
     try {
       await Clipboard.setStringAsync(text);
-      Alert.alert("Copied", "Prompt copied to clipboard");
+      showAlert("Copied", "Prompt copied to clipboard");
     } catch (e) {
-      Alert.alert("Error", "Copy failed");
+      showAlert("Error", "Copy failed");
     }
   };
 
@@ -216,70 +230,47 @@ export default function HistoryScreen() {
 
   /* DELETE */
   const handleDelete = (id) => {
-    Alert.alert(
-      "Delete",
-      "Delete this prompt?",
-      [
-        {
-          text: "Cancel"
-        },
+  setAlertTitle("Delete");
+  setAlertMessage("Delete this prompt?");
+  setConfirmMode(true);
 
-        {
-          text: "Delete",
-          style: "destructive",
+  setConfirmAction(() => async () => {
+    await deletePromptFromHistory(id);
 
-          onPress: async () => {
-
-            /* REMOVE FROM HISTORY */
-
-            await deletePromptFromHistory(id);
-
-            setHistoryData(prev =>
-              prev.filter(item =>
-                item.id !== id
-              )
-            );
-
-            /* REMOVE FROM FOLDERS */
-
-            try {
-
-              const data =
-                await AsyncStorage.getItem(
-                  "FOLDER_PROMPTS"
-                );
-
-              const parsed =
-                data ? JSON.parse(data) : {};
-
-              Object.keys(parsed).forEach(
-                folderId => {
-
-                  parsed[folderId] =
-                    parsed[folderId].filter(
-                      item => item.id !== id
-                    );
-
-                }
-              );
-
-              await AsyncStorage.setItem(
-                "FOLDER_PROMPTS",
-                JSON.stringify(parsed)
-              );
-
-            } catch (e) {
-
-              console.log(e);
-
-            }
-
-          }
-        }
-      ]
+    setHistoryData(prev =>
+      prev.filter(item => item.id !== id)
     );
 
-  };
+    try {
+      const data = await AsyncStorage.getItem(
+        "FOLDER_PROMPTS"
+      );
+
+      const parsed =
+        data ? JSON.parse(data) : {};
+
+      Object.keys(parsed).forEach(folderId => {
+        parsed[folderId] =
+          parsed[folderId].filter(
+            item => item.id !== id
+          );
+      });
+
+      await AsyncStorage.setItem(
+        "FOLDER_PROMPTS",
+        JSON.stringify(parsed)
+      );
+
+    } catch (e) {
+      console.log(e);
+    }
+
+    setAlertVisible(false);
+    setConfirmMode(false);
+  });
+
+  setAlertVisible(true);
+};
 
   /* REUSE */
   const handleReuse = (item) => {
@@ -461,7 +452,21 @@ export default function HistoryScreen() {
 
       </Modal>
 
+      <CustomAlert
+      visible={alertVisible}
+      title={alertTitle}
+      message={alertMessage}
+      onClose={() => {
+        setAlertVisible(false);
+        setConfirmMode(false);
+      }}
 
+      showCancel={confirmMode}
+      confirmText="Delete"
+      cancelText="Cancel"
+      onConfirm={confirmAction}
+      danger={true}
+    />
 
 
 

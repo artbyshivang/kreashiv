@@ -1,20 +1,63 @@
-import React, { useContext } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from "@react-navigation/native";
+import React, {
+  useContext,
+  useState,
+  useCallback
+} from "react";
+
+import { View, Text, TouchableOpacity, Image } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+import {
+  useNavigation,
+  useFocusEffect
+} from "@react-navigation/native";
+
 import { ThemeContext } from "../theme/ThemeContext";
+import { UserContext } from "../context/UserContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function Header() {
-
   const navigation = useNavigation();
   const { theme } = useContext(ThemeContext);
+  const { user } = useContext(UserContext);
+
+  const [profileImage, setProfileImage] = useState(null);
+  
+ const darkLogo = require("../../assets/images/full logo.png");
+const lightLogo = require("../../assets/images/full logo light.png");
+
+
+
+
+
+  useFocusEffect(
+  useCallback(() => {
+    loadProfileImage();
+  }, [user])
+);
+
+  const loadProfileImage = async () => {
+  try {
+    if (!user?.uid) return;
+
+    const savedImage = await AsyncStorage.getItem(
+      `profileImage_${user.uid}`
+    );
+
+    // image ho ya na ho dono case handle
+    setProfileImage(savedImage || null);
+
+  } catch (error) {
+    console.log(error);
+  }
+};
 
   return (
     <View
       style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
         paddingHorizontal: 20,
         paddingTop: 48,
         paddingBottom: 16,
@@ -28,28 +71,51 @@ export default function Header() {
         elevation: 4,
       }}
     >
+  {/* LEFT: Logo + Name */}
+<View style={{ flexDirection: "row", alignItems: "center" }}>
+  <Image
+  source={theme.background === "#0f172a" ? darkLogo : lightLogo}
+  style={{
+    width: 110,
+    height: 35,
+    resizeMode: "contain",
+    marginRight: 8,
+  }}
+/>
 
-      {/* 🔹 LEFT: Logo + Name */}
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <View style={{ width: 40, height: 40, backgroundColor: theme.primary, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
-          <Ionicons name="cube-outline" size={20} color="white" />
-        </View>
+</View>
 
-        <Text style={{ color: theme.primary, fontSize: 20, fontWeight: 'bold' }}>
-          Kreashiv
-        </Text>
-      </View>
 
-      {/* 🔹 RIGHT: Profile Icon */}
+      {/* RIGHT: Profile Image */}
       <TouchableOpacity
-        onPress={() => navigation.navigate("Profile")}  // ✅ IMPORTANT
+        onPress={() => navigation.navigate("Profile")}
         activeOpacity={0.7}
       >
-        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: theme.background === "#0f172a" ? "#14532d" : "#e8f5ee", alignItems: 'center', justifyContent: 'center' }}>
-          <Ionicons name="person" size={20} color={theme.primary} />
-        </View>
+        {profileImage ? (
+          <Image
+            source={{ uri: profileImage }}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+            }}
+          />
+        ) : (
+          <View
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor:
+                theme.background === "#0f172a" ? "#14532d" : "#e8f5ee",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Ionicons name="person" size={20} color={theme.primary} />
+          </View>
+        )}
       </TouchableOpacity>
-
     </View>
   );
 }

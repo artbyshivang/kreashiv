@@ -6,12 +6,23 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
-  Alert
 } from 'react-native';
+
+/*
+import {
+  BannerAd,
+  BannerAdSize,
+  InterstitialAd,
+  AdEventType
+} from "react-native-google-mobile-ads";
+
+*/
+
 
 
 
 import { ActivityIndicator } from "react-native";
+import CustomAlert from "../components/CustomAlert";
 import model from "../api/gemini";
 import Header from '../components/Header';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,6 +33,18 @@ import { UserContext } from "../context/UserContext";
 import * as Clipboard from 'expo-clipboard';
 import { savePromptToHistory } from "../storage/historyStorage";
 export default function HomeScreen() {
+  
+/*  const [generateCount, setGenerateCount] = useState(0);
+
+const interstitial = InterstitialAd.createForAdRequest(
+  "ca-app-pub-2777387455378814/5275083410"
+); */
+  
+  
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState("");
+  const [alertMessage, setAlertMessage] = useState("");
+
   const [generatedPrompt, setGeneratedPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   /* USER PLAN */
@@ -64,15 +87,18 @@ const isPremiumUser =
     setInput("");
   }, [promptType]);
 
+  const showAlert = (title, message) => {
+  setAlertTitle(title);
+  setAlertMessage(message);
+  setAlertVisible(true);
+};
+  
   /* GENERATE */
   const handleGenerate = async () => {
 
   if (!input.trim()) {
 
-    Alert.alert(
-      "Error",
-      "Please enter your idea first"
-    );
+    showAlert("Error", "Please enter your idea first");
 
     return;
   }
@@ -270,6 +296,28 @@ Return ONLY one final optimized cinematic video prompt that strictly follows all
 
     setGeneratedPrompt(text);
 
+   /* 
+   
+   // FREE USER AD LOGIC
+if (!isPremiumUser) {
+  const newCount = generateCount + 1;
+  setGenerateCount(newCount);
+
+  if (newCount % 4 === 0) {
+    interstitial.load();
+
+    interstitial.addAdEventListener(AdEventType.LOADED, () => {
+      interstitial.show();
+    });
+  }
+}
+
+*/
+
+
+
+
+
     const newHistoryItem = {
       id: Date.now().toString(),
       time: new Date().toLocaleString([], {
@@ -289,10 +337,7 @@ Return ONLY one final optimized cinematic video prompt that strictly follows all
 
     console.log(error);
 
-    Alert.alert(
-      "Error",
-      "Failed to generate prompt"
-    );
+    showAlert("Error", "Failed to generate prompt");
 
   } finally {
 
@@ -303,7 +348,7 @@ Return ONLY one final optimized cinematic video prompt that strictly follows all
 
   const copyPrompt = async () => {
     await Clipboard.setStringAsync(generatedPrompt);
-    Alert.alert("Copied", "Prompt copied successfully");
+    showAlert("Copied", "Prompt copied successfully");
   };
 
   const LockBadge = () => (
@@ -489,7 +534,7 @@ Return ONLY one final optimized cinematic video prompt that strictly follows all
                     !isPremiumUser
                   ) {
 
-                    Alert.alert(
+                    showAlert(
                       "Premium Feature",
                       "High quality is locked for free users."
                     );
@@ -566,7 +611,7 @@ Return ONLY one final optimized cinematic video prompt that strictly follows all
                     !isPremiumUser
                   ) {
 
-                    Alert.alert(
+                    showAlert(
                       "Premium Feature",
                       "Artistic style is locked for free users."
                     );
@@ -664,7 +709,7 @@ Return ONLY one final optimized cinematic video prompt that strictly follows all
                     !isPremiumUser
                   ) {
 
-                    Alert.alert(
+                    showAlert(
                       "Premium Feature",
                       "Long content is locked for free users."
                     );
@@ -744,7 +789,7 @@ Return ONLY one final optimized cinematic video prompt that strictly follows all
                     !isPremiumUser
                   ) {
 
-                    Alert.alert(
+                    showAlert(
                       "Premium Feature",
                       "This tone is locked for free users."
                     );
@@ -828,7 +873,7 @@ Return ONLY one final optimized cinematic video prompt that strictly follows all
                     !isPremiumUser
                   ) {
 
-                    Alert.alert(
+                    showAlert(
                       "Premium Feature",
                       "Advanced camera controls are locked for free users."
                     );
@@ -901,7 +946,7 @@ Return ONLY one final optimized cinematic video prompt that strictly follows all
 
                   if (!isPremiumUser) {
 
-                    Alert.alert(
+                    showAlert(
                       "Premium Feature",
                       "Face consistency is locked for free users."
                     );
@@ -1097,6 +1142,30 @@ Return ONLY one final optimized cinematic video prompt that strictly follows all
 
 
       </ScrollView>
+
+
+{ /*
+
+{!isPremiumUser && (
+  <BannerAd
+    unitId="ca-app-pub-2777387455378814/8284390134"
+    size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+    requestOptions={{
+      requestNonPersonalizedAdsOnly: true,
+    }}
+  />
+)}
+
+*/}
+
+<CustomAlert
+  visible={alertVisible}
+  title={alertTitle}
+  message={alertMessage}
+  onClose={() => setAlertVisible(false)}
+/>
+
+
     </View>
   );
 }

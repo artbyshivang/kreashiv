@@ -1,5 +1,6 @@
 import {
     signInWithEmailAndPassword,
+    signOut
 } from "firebase/auth";
 
 import auth from "./auth";
@@ -14,25 +15,6 @@ const login = async (email, password) => {
                 password
             );
 
-        if (
-            !userCredential.user.emailVerified
-        ) {
-
-            return {
-                success: false,
-                error:
-                    "Please verify your email first.",
-            };
-        }
-
-
-
-
-
-
-
-
-
         console.log("Login Success");
 
         return {
@@ -46,7 +28,7 @@ const login = async (email, password) => {
 
         return {
             success: false,
-            error: error.message,
+           error: error.code,
         };
     }
 };

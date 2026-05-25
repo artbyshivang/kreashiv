@@ -1,4 +1,5 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
+import CustomAlert from "../components/CustomAlert";
 import {
     View,
     Text,
@@ -14,6 +15,7 @@ export default function ManagePlanScreen() {
     const navigation = useNavigation();
 
     const { theme } = useContext(ThemeContext);
+    const [showCancelAlert, setShowCancelAlert] = useState(false);
 
     /* DEMO */
     const isPremiumUser = true;
@@ -346,6 +348,7 @@ export default function ManagePlanScreen() {
 
                         <TouchableOpacity
                             activeOpacity={0.85}
+                            onPress={() => setShowCancelAlert(true)}
                             style={{
                                 backgroundColor: theme.card,
                                 borderRadius: 22,
@@ -405,6 +408,24 @@ export default function ManagePlanScreen() {
                 )}
 
             </ScrollView>
+
+            <CustomAlert
+                visible={showCancelAlert}
+                title="Cancel Subscription?"
+                message="Are you sure you want to cancel your subscription? Your plan will stay active until billing ends."
+                onClose={() => setShowCancelAlert(false)}
+                showCancel={true}
+                cancelText="Keep Plan"
+                confirmText="Cancel"
+                danger={true}
+                onConfirm={() => {
+                    setShowCancelAlert(false);
+                    console.log("Subscription cancelled");
+                }}
+            />
+
+
+
         </View>
     );
 }
@@ -554,6 +575,11 @@ function ActionCard({
                     size={22}
                     color={theme.subText}
                 />
+
+            
+
+
+
             </View>
         </TouchableOpacity>
     );
