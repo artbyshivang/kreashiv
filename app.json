@@ -14,7 +14,7 @@
     },
 
     "android": {
-      "package": "com.kreashiv.app",
+      "package": "com.artbyshivang.kreashiv",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
   "backgroundColor": "#001b17",

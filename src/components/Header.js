@@ -72,11 +72,11 @@ const lightLogo = require("../../assets/images/full logo light.png");
       }}
     >
   {/* LEFT: Logo + Name */}
-<View style={{ flexDirection: "row", alignItems: "center" }}>
+<View style={{ flexDirection: "row", alignItems: "center", flex: 1,  }}>
   <Image
   source={theme.background === "#0f172a" ? darkLogo : lightLogo}
   style={{
-    width: 110,
+    width: 95,
     height: 35,
     resizeMode: "contain",
     marginRight: 8,
@@ -88,9 +88,12 @@ const lightLogo = require("../../assets/images/full logo light.png");
 
       {/* RIGHT: Profile Image */}
       <TouchableOpacity
-        onPress={() => navigation.navigate("Profile")}
-        activeOpacity={0.7}
-      >
+      onPress={() => navigation.navigate("Profile")}
+      activeOpacity={0.7}
+      style={{
+        marginLeft: 12,
+      }}
+       >
         {profileImage ? (
           <Image
             source={{ uri: profileImage }}

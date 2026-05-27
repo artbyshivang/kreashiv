@@ -55,9 +55,8 @@ const loadProfileImage = async () => {
       `profileImage_${user.uid}`
     );
 
-    if (savedImage) {
-      setProfileImage(savedImage);
-    }
+    setProfileImage(savedImage || null);
+    
   } catch (error) {
     console.log(error);
   }
@@ -155,6 +154,43 @@ const [photoOptionsVisible, setPhotoOptionsVisible] = useState(false);
 const openImageOptions = () => {
   setPhotoOptionsVisible(true);
 };
+
+const removeImage = async () => {
+  try {
+
+    if (!user?.uid) return;
+
+    // UI se image hatao
+    setProfileImage(null);
+
+    // Storage se remove karo
+    await AsyncStorage.removeItem(
+      `profileImage_${user.uid}`
+    );
+
+    showAlert(
+      "Success",
+      "Profile photo removed"
+    );
+
+  } catch (error) {
+
+    console.log(error);
+
+    showAlert(
+      "Error",
+      "Failed to remove image"
+    );
+  }
+};
+
+
+
+
+
+
+
+
 
   const showStats = false;
  const isPremiumUser = user?.premium || false;

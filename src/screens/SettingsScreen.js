@@ -19,6 +19,7 @@ import { UserContext } from "../context/UserContext";
 import { clearHistory } from "../storage/historyStorage";
 import { updateDoc } from "firebase/firestore";
 import CustomAlert from "../components/CustomAlert";
+import { registerForPushNotificationsAsync } from "../utils/notifications";
 
 import { deleteUser } from "firebase/auth";
 
@@ -626,21 +627,34 @@ useEffect(() => {
 
             <TouchableOpacity
               onPress={async () => {
-  const newValue = !notifications;
+                const newValue = !notifications;
 
-  setNotifications(newValue);
-
-  try {
-    await updateDoc(
-      doc(db, "users", user.uid),
-      {
-        notificationsEnabled: newValue,
-      }
-    );
-  } catch (error) {
-    console.log(error);
-  }
-}}
+                try {
+                  if (newValue) {
+                    const token = await registerForPushNotificationsAsync();
+                    if (token) {
+                      setNotifications(true);
+                      await updateDoc(doc(db, "users", user.uid), {
+                        notificationsEnabled: true,
+                        pushToken: token,
+                      });
+                      showAlert("Success", "Notifications enabled successfully.");
+                    } else {
+                      setNotifications(false);
+                    }
+                  } else {
+                    setNotifications(false);
+                    await updateDoc(doc(db, "users", user.uid), {
+                      notificationsEnabled: false,
+                      pushToken: null,
+                    });
+                    showAlert("Success", "Notifications disabled.");
+                  }
+                } catch (error) {
+                  console.log(error);
+                  showAlert("Error", "Failed to update notification settings.");
+                }
+              }}
               activeOpacity={0.8}
               style={{
                 width: 52,

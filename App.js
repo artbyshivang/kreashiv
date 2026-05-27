@@ -5,6 +5,24 @@ import RootNavigator from "./src/navigation/RootNavigator";
 import ThemeProvider, { ThemeContext } from "./src/theme/ThemeContext";
 import { UserProvider } from "./src/context/UserContext";
 import "./src/firebase/test";
+import * as Notifications from "expo-notifications";
+import mobileAds from "react-native-google-mobile-ads";
+
+// Configure how notifications are handled when the app is in the foreground
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
+
+mobileAds()
+  .initialize()
+  .then(() => {
+    console.log("AdMob Initialized");
+  });
 
 function AppContent() {
   const { theme } = useContext(ThemeContext);

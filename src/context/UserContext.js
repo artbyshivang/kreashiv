@@ -9,6 +9,7 @@ import auth from "../firebase/auth";
 import {
   onAuthStateChanged,
   signOut,
+  reload,
 } from "firebase/auth";
 
 import {
@@ -19,7 +20,7 @@ import {
 
 import { db } from "../firebase/config";
 
-// import { registerForPushNotificationsAsync } from "../utils/notifications";
+import { registerForPushNotificationsAsync } from "../utils/notifications";
 
 export const UserContext = createContext();
 
@@ -29,20 +30,30 @@ export function UserProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!auth) {
+      console.warn("Firebase Auth is not initialized. Skipping auth listener.");
+      setLoading(false);
+      return;
+    }
     const unsubscribe = onAuthStateChanged(
       auth,
       async (currentUser) => {
+      
+        await reload(currentUser);
+
         if (currentUser) {
 
           if (!currentUser.emailVerified) {
- 
-            setUser(currentUser);
- 
-            setLoading(false);
- 
-            return;
 
-          }
+          setUser({
+            ...currentUser,
+            emailVerified: false,
+          });
+
+          setLoading(false);
+
+          return;
+        }
 
           try {
             const userRef = doc(
@@ -61,14 +72,14 @@ export function UserProvider({ children }) {
               });
 
               // PUSH TOKEN SAVE
-             /* const token =
+              const token =
                 await registerForPushNotificationsAsync();
 
               if (token) {
                 await updateDoc(userRef, {
                   pushToken: token,
                 });
-              }  */
+              }
 
             } else {
               setUser(currentUser);

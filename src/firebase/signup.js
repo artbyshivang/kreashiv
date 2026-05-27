@@ -8,6 +8,11 @@ import auth from "./auth";
 import {
     doc,
     setDoc,
+    collection,
+    query,
+    where,
+    getDocs,
+    serverTimestamp,
 } from "firebase/firestore";
 
 import { db } from "./config";
@@ -21,7 +26,31 @@ const signup = async (
     email,
     password
 ) => {
+    
+    phone = phone.replace(/\s+/g, "");
+    
     try {
+
+        // CHECK DUPLICATE PHONE NUMBER
+        const usersRef = collection(db, "users");
+
+        const q = query(
+            usersRef,
+            where("phone", "==", phone)
+        );
+
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+
+            return {
+                success: false,
+                error: "Phone number already exists",
+            };
+        }
+
+
+
         const userCredential =
             await createUserWithEmailAndPassword(
                 auth,
@@ -69,7 +98,7 @@ if (!data.success) {
                 email: email,
                 phone: phone,
                 premium: false,
-                createdAt: new Date(),
+                createdAt: serverTimestamp(),
             }
         );
 

@@ -8,15 +8,12 @@ import {
   Switch,
 } from 'react-native';
 
-/*
 import {
   BannerAd,
   BannerAdSize,
   InterstitialAd,
   AdEventType
 } from "react-native-google-mobile-ads";
-
-*/
 
 
 
@@ -33,12 +30,11 @@ import { UserContext } from "../context/UserContext";
 import * as Clipboard from 'expo-clipboard';
 import { savePromptToHistory } from "../storage/historyStorage";
 export default function HomeScreen() {
-  
-/*  const [generateCount, setGenerateCount] = useState(0);
+  const [generateCount, setGenerateCount] = useState(0);
 
-const interstitial = InterstitialAd.createForAdRequest(
-  "ca-app-pub-2777387455378814/5275083410"
-); */
+  const interstitial = InterstitialAd.createForAdRequest(
+    "ca-app-pub-2777387455378814/5275083410"
+  );
   
   
   const [alertVisible, setAlertVisible] = useState(false);
@@ -296,23 +292,19 @@ Return ONLY one final optimized cinematic video prompt that strictly follows all
 
     setGeneratedPrompt(text);
 
-   /* 
-   
-   // FREE USER AD LOGIC
-if (!isPremiumUser) {
-  const newCount = generateCount + 1;
-  setGenerateCount(newCount);
+    // FREE USER AD LOGIC
+    if (!isPremiumUser) {
+      const newCount = generateCount + 1;
+      setGenerateCount(newCount);
 
-  if (newCount % 4 === 0) {
-    interstitial.load();
+      if (newCount % 4 === 0) {
+        interstitial.load();
 
-    interstitial.addAdEventListener(AdEventType.LOADED, () => {
-      interstitial.show();
-    });
-  }
-}
-
-*/
+        interstitial.addAdEventListener(AdEventType.LOADED, () => {
+          interstitial.show();
+        });
+      }
+    }
 
 
 
@@ -1143,20 +1135,15 @@ if (!isPremiumUser) {
 
       </ScrollView>
 
-
-{ /*
-
-{!isPremiumUser && (
-  <BannerAd
-    unitId="ca-app-pub-2777387455378814/8284390134"
-    size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
-    requestOptions={{
-      requestNonPersonalizedAdsOnly: true,
-    }}
-  />
-)}
-
-*/}
+      {!isPremiumUser && (
+        <BannerAd
+          unitId="ca-app-pub-2777387455378814/8284390134"
+          size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+          requestOptions={{
+            requestNonPersonalizedAdsOnly: true,
+          }}
+        />
+      )}
 
 <CustomAlert
   visible={alertVisible}

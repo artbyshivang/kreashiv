@@ -5,6 +5,7 @@ import { Resend } from "resend";
 
 import resetPasswordRoute from "./routes/resetPassword.js";
 import verifyEmailRoute from "./routes/verifyEmail.js";
+import sendNotificationRoute from "./routes/sendNotification.js";
 
 dotenv.config();
 
@@ -15,6 +16,7 @@ app.use(express.json());
 
 app.use("/api", resetPasswordRoute);
 app.use("/api", verifyEmailRoute);
+app.use("/api", sendNotificationRoute);
 
 
 
