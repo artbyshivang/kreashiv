@@ -16,7 +16,6 @@
     "android": {
       "package": "com.kreashiv.app",
       "googleServicesFile": "./google-services.json",
-      "useNextNotificationsApi": true,
       "adaptiveIcon": {
   "backgroundColor": "#001b17",
   "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -39,7 +38,7 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#001b17"
+          "backgroundColor": "#00130f"
           
         }
       ],
