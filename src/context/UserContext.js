@@ -38,10 +38,12 @@ export function UserProvider({ children }) {
     const unsubscribe = onAuthStateChanged(
       auth,
       async (currentUser) => {
-      
-        await reload(currentUser);
-
         if (currentUser) {
+          try {
+            await reload(currentUser);
+          } catch (e) {
+            console.log("Failed to reload user on auth state change:", e);
+          }
 
           if (!currentUser.emailVerified) {
 
