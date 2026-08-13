@@ -1,4 +1,4 @@
-const API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || "AIzaSyAeBtE6yc8V2yRd5r90g5TMBaALrWzDl9g";
+const API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || "";
 
 const MODELS = [
   "gemini-2.5-flash",
