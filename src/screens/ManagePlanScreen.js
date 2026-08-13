@@ -1,24 +1,45 @@
-import React, { useContext, useState } from "react";
-import CustomAlert from "../components/CustomAlert";
+import { useContext, useState } from "react";
 import {
-    View,
-    Text,
     ScrollView,
+    Text,
     TouchableOpacity,
+    View,
 } from "react-native";
+import CustomAlert from "../components/CustomAlert";
 
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { UserContext } from "../context/UserContext";
 import { ThemeContext } from "../theme/ThemeContext";
+
+import { doc, updateDoc } from "firebase/firestore";
+import { db } from "../firebase/config";
 
 export default function ManagePlanScreen() {
     const navigation = useNavigation();
 
     const { theme } = useContext(ThemeContext);
-    const [showCancelAlert, setShowCancelAlert] = useState(false);
 
-    /* DEMO */
-    const isPremiumUser = true;
+    const { user, setUser } = useContext(UserContext);
+
+    const isPremiumUser = user?.premium || false;
+
+    const [showCancelAlert, setShowCancelAlert] = useState(false);
+    const [alertVisible, setAlertVisible] = useState(false);
+    const [alertTitle, setAlertTitle] = useState("");
+    const [alertMessage, setAlertMessage] = useState("");
+
+    const showAlert = (title, message) => {
+        setAlertTitle(title);
+        setAlertMessage(message);
+        setAlertVisible(true);
+    };
+
+    const todayDate = new Date().toISOString().split("T")[0];
+    const dailyUsed = user?.dailyUsage?.date === todayDate ? (user?.dailyUsage?.count || 0) : 0;
+    const remainingDaily = Math.max(0, 15 - dailyUsed);
+
+    const proCredits = user?.credits ?? 1000;
 
     return (
         <View
@@ -152,7 +173,7 @@ export default function ManagePlanScreen() {
                                 >
                                     {isPremiumUser
                                         ? "Active Subscription"
-                                        : "Current Active Plan"}
+                                        : "15 Prompts / Day"}
                                 </Text>
                             </View>
                         </View>
@@ -199,105 +220,77 @@ export default function ManagePlanScreen() {
                         }}
                     >
                         <PlanItem
-                            label="Started"
-                            value="08 May"
+                            label="Plan Type"
+                            value={isPremiumUser ? "Monthly" : "Free"}
                             light={isPremiumUser}
                             theme={theme}
                         />
 
                         <PlanItem
-                            label="Expires"
-                            value="08 Jun"
+                            label="Reset"
+                            value={isPremiumUser ? "Monthly" : "Daily"}
                             light={isPremiumUser}
                             theme={theme}
                         />
 
                         <PlanItem
-                            label="Credits"
-                            value="742"
+                            label={isPremiumUser ? "Credits" : "Remaining"}
+                            value={isPremiumUser ? `${proCredits}` : `${remainingDaily}`}
                             theme={theme}
                             light={isPremiumUser}
                         />
                     </View>
 
-                    {/* PRO FEATURES */}
-                    {isPremiumUser && (
-                        <>
-                            {/* PRO FEATURES HIDDEN */}
-                            {false && (<View
+                    {/* USAGE PROGRESS BAR (REAL TIME) */}
+                    <View style={{ marginTop: 24 }}>
+                        <View
+                            style={{
+                                flexDirection: "row",
+                                justifyContent: "space-between",
+                                marginBottom: 8,
+                            }}
+                        >
+                            <Text
                                 style={{
-                                    flexDirection: "row",
-                                    justifyContent: "space-between",
-                                    marginTop: 26,
+                                    color: isPremiumUser ? "#fff" : theme.text,
+                                    fontWeight: "700",
                                 }}
                             >
+                                {isPremiumUser ? "Monthly Credits" : "Daily Prompts Used"}
+                            </Text>
 
-                                <Feature
-                                    icon="sparkles-outline"
-                                    text="HQ AI"
-                                />
+                            <Text
+                                style={{
+                                    color: isPremiumUser ? "#fff" : theme.text,
+                                    fontWeight: "700",
+                                }}
+                            >
+                                {isPremiumUser ? `${proCredits} / 1000` : `${dailyUsed} / 15`}
+                            </Text>
+                        </View>
 
-                                <Feature
-                                    icon="flash-outline"
-                                    text="Fast"
-                                />
-
-                                <Feature
-                                    icon="ban-outline"
-                                    text="Ad-Free"
-                                />
-
-                            </View>)}
-
-                            {/* CREDITS BAR */}
-                            <View style={{ marginTop: 24 }}>
-                                <View
-                                    style={{
-                                        flexDirection: "row",
-                                        justifyContent: "space-between",
-                                        marginBottom: 8,
-                                    }}
-                                >
-                                    <Text
-                                        style={{
-                                            color: "#fff",
-                                            fontWeight: "700",
-                                        }}
-                                    >
-                                        Monthly Credits
-                                    </Text>
-
-                                    <Text
-                                        style={{
-                                            color: "#fff",
-                                            fontWeight: "700",
-                                        }}
-                                    >
-                                        742 / 1000
-                                    </Text>
-                                </View>
-
-                                <View
-                                    style={{
-                                        height: 10,
-                                        borderRadius: 999,
-                                        backgroundColor:
-                                            "rgba(255,255,255,0.18)",
-                                        overflow: "hidden",
-                                    }}
-                                >
-                                    <View
-                                        style={{
-                                            width: "74%",
-                                            height: "100%",
-                                            backgroundColor: "#fff",
-                                            borderRadius: 999,
-                                        }}
-                                    />
-                                </View>
-                            </View>
-                        </>
-                    )}
+                        <View
+                            style={{
+                                height: 10,
+                                borderRadius: 999,
+                                backgroundColor: isPremiumUser
+                                    ? "rgba(255,255,255,0.18)"
+                                    : theme.border,
+                                overflow: "hidden",
+                            }}
+                        >
+                            <View
+                                style={{
+                                    width: isPremiumUser
+                                        ? `${Math.min(100, Math.round((proCredits / 1000) * 100))}%`
+                                        : `${Math.min(100, Math.round((dailyUsed / 15) * 100))}%`,
+                                    height: "100%",
+                                    backgroundColor: isPremiumUser ? "#fff" : theme.primary,
+                                    borderRadius: 999,
+                                }}
+                            />
+                        </View>
+                    </View>
                 </View>
 
                 {/* QUICK ACTIONS */}
@@ -313,13 +306,15 @@ export default function ManagePlanScreen() {
                     QUICK ACTIONS
                 </Text>
 
-                <ActionCard
-                    icon="flash"
-                    title="Buy Credit Booster"
-                    desc="Get extra credits instantly"
-                    theme={theme}
-                    onPress={() => navigation.navigate("Premium")}
-                />
+                {isPremiumUser && (
+                    <ActionCard
+                        icon="flash"
+                        title="Buy Credit Booster"
+                        desc="Get extra credits instantly"
+                        theme={theme}
+                        onPress={() => navigation.navigate("Premium")}
+                    />
+                )}
 
                 <ActionCard
                     icon="rocket-outline"
@@ -412,16 +407,41 @@ export default function ManagePlanScreen() {
             <CustomAlert
                 visible={showCancelAlert}
                 title="Cancel Subscription?"
-                message="Are you sure you want to cancel your subscription? Your plan will stay active until billing ends."
+                message="Are you sure you want to cancel your subscription?"
                 onClose={() => setShowCancelAlert(false)}
                 showCancel={true}
                 cancelText="Keep Plan"
                 confirmText="Cancel"
                 danger={true}
-                onConfirm={() => {
-                    setShowCancelAlert(false);
-                    console.log("Subscription cancelled");
+                onConfirm={async () => {
+                    try {
+                        setShowCancelAlert(false);
+                        if (user?.uid) {
+                            const userRef = doc(db, "users", user.uid);
+                            await updateDoc(userRef, {
+                                premium: false,
+                            });
+                            setUser({
+                                ...user,
+                                premium: false,
+                            });
+                            showAlert(
+                                "Subscription Cancelled",
+                                "Your subscription has been cancelled successfully."
+                            );
+                        }
+                    } catch (error) {
+                        console.log("Cancel subscription error:", error);
+                        showAlert("Error", "Failed to cancel subscription. Please try again.");
+                    }
                 }}
+            />
+
+            <CustomAlert
+                visible={alertVisible}
+                title={alertTitle}
+                message={alertMessage}
+                onClose={() => setAlertVisible(false)}
             />
 
 
@@ -576,7 +596,7 @@ function ActionCard({
                     color={theme.subText}
                 />
 
-            
+
 
 
 

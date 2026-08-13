@@ -1,20 +1,22 @@
-import React, { useContext, useState } from 'react';
+import { useContext, useState } from 'react';
 
+import { LogOut, Mail, RefreshCcw, Send } from 'lucide-react-native';
 import {
-    View,
-    Text,
-    TouchableOpacity,
-    SafeAreaView,
-    StatusBar,
     ActivityIndicator,
     Image,
-    useColorScheme
+    SafeAreaView,
+    StatusBar,
+    Text,
+    TouchableOpacity,
+    useColorScheme,
+    View
 } from 'react-native';
-import { Mail, RefreshCcw, LogOut, Send } from 'lucide-react-native';
-import { ThemeContext } from '../theme/ThemeContext';
+import CustomAlert from "../components/CustomAlert";
 import { UserContext } from '../context/UserContext';
 import auth from '../firebase/auth';
-import CustomAlert from "../components/CustomAlert";
+import { ThemeContext } from '../theme/ThemeContext';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../firebase/config';
 
 
 const VerifyEmailScreen = () => {
@@ -36,9 +38,9 @@ const VerifyEmailScreen = () => {
     const lightLogo = require("../../assets/images/full logo light.png");
 
     const showAlert = (title, message) => {
-    setAlertTitle(title);
-    setAlertMessage(message);
-    setAlertVisible(true);
+        setAlertTitle(title);
+        setAlertMessage(message);
+        setAlertVisible(true);
     };
 
     const handleRefresh = async () => {
@@ -46,24 +48,71 @@ const VerifyEmailScreen = () => {
         try {
             if (auth.currentUser) {
                 await auth.currentUser.reload();
+
+
+
+
+                // if (auth.currentUser.emailVerified) {
+                // Update context so router navigates to MainTabs
+                //   setUser({
+                //    ...user,
+                //    emailVerified: true
+                //});
+                //  }
+
+
+
                 if (auth.currentUser.emailVerified) {
-                    // Update context so router navigates to MainTabs
-                    setUser({
-                        ...user,
-                        emailVerified: true
-                    });
-                } else {
+                    const u = auth.currentUser;
+                    const baseUser = {
+                        uid: u.uid,
+                        email: u.email,
+                        displayName: u.displayName,
+                        phoneNumber: u.phoneNumber,
+                        photoURL: u.photoURL,
+                    };
+
+                    const userRef = doc(
+                        db,
+                        "users",
+                        u.uid
+                    );
+
+                    const userSnap = await getDoc(userRef);
+
+                    if (userSnap.exists()) {
+                        setUser({
+                            ...baseUser,
+                            ...userSnap.data(),
+                            emailVerified: true,
+                        });
+                    } else {
+                        setUser({
+                            ...baseUser,
+                            emailVerified: true,
+                        });
+                    }
+                }
+
+
+
+
+
+
+
+
+                else {
                     showAlert(
-                    "Not Verified",
-                    "Email not verified yet. Please check your inbox."
+                        "Not Verified",
+                        "Email not verified yet. Please check your inbox."
                     );
                 }
             }
         } catch (error) {
             console.log(error);
             showAlert(
-            "Error",
-            "Something went wrong while checking status."
+                "Error",
+                "Something went wrong while checking status."
             );
         } finally {
             setRefreshing(false);
@@ -82,20 +131,20 @@ const VerifyEmailScreen = () => {
             const data = await res.json();
             if (data.success) {
                 showAlert(
-                "Success",
-                "Verification email resent. Please check your inbox."
+                    "Success",
+                    "Verification email resent. Please check your inbox."
                 );
             } else {
-              showAlert(
-             "Error",
-            "Failed to send verification email: " + (data.error || "Unknown error")
-            );  
+                showAlert(
+                    "Error",
+                    "Failed to send verification email: " + (data.error || "Unknown error")
+                );
             }
         } catch (error) {
             console.log(error);
             showAlert(
-            "Error",
-            "Something went wrong while resending email."
+                "Error",
+                "Something went wrong while resending email."
             );
         } finally {
             setSending(false);
@@ -106,14 +155,14 @@ const VerifyEmailScreen = () => {
         <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
             <StatusBar barStyle="dark-content" />
             <View style={{ flex: 1, justifyContent: 'center', padding: 20 }}>
-                
+
                 <View style={{
                     backgroundColor: theme.card,
                     borderRadius: 24,
                     padding: 30,
                     alignItems: 'center',
                 }}>
-                    
+
                     {/* Logo */}
                     <View style={{ marginBottom: 30 }}>
                         <Image
@@ -155,7 +204,7 @@ const VerifyEmailScreen = () => {
                         lineHeight: 22,
                         marginBottom: 8
                     }}>
-                        We've sent a verification link to:
+                        {"We've sent a verification link to:"}
                     </Text>
                     <Text style={{
                         fontSize: 16,
@@ -239,10 +288,10 @@ const VerifyEmailScreen = () => {
                     </TouchableOpacity>
 
                     <CustomAlert
-                    visible={alertVisible}
-                    title={alertTitle}
-                    message={alertMessage}
-                    onClose={() => setAlertVisible(false)}
+                        visible={alertVisible}
+                        title={alertTitle}
+                        message={alertMessage}
+                        onClose={() => setAlertVisible(false)}
                     />
 
 

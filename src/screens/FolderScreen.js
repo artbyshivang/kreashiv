@@ -45,12 +45,16 @@ import {
 
 import { Ionicons } from '@expo/vector-icons';
 
+import { UserContext } from "../context/UserContext";
+
 export default function FolderScreen({ route, navigation }) {
 
     const { folder } = route.params;
 
     const { theme } =
         useContext(ThemeContext);
+
+    const { user } = useContext(UserContext);
 
     const [prompts, setPrompts] = useState([]);
 
@@ -59,29 +63,57 @@ export default function FolderScreen({ route, navigation }) {
 
 
     const [addModal, setAddModal] = useState(false);
-    
+
     const [showDeleteAlert, setShowDeleteAlert] = useState(false);
     const [selectedPrompt, setSelectedPrompt] = useState(null);
     const [selectedIndex, setSelectedIndex] = useState(null);
 
+    const [alertVisible, setAlertVisible] = useState(false);
+    const [alertTitle, setAlertTitle] = useState("");
+    const [alertMessage, setAlertMessage] = useState("");
 
+    const [confirmVisible, setConfirmVisible] = useState(false);
+    const [confirmTitle, setConfirmTitle] = useState("");
+    const [confirmMessage, setConfirmMessage] = useState("");
+    const [confirmAction, setConfirmAction] = useState(null);
+    const [isDanger, setIsDanger] = useState(false);
 
+    const showAlert = (title, message) => {
+        setAlertTitle(title);
+        setAlertMessage(message);
+        setAlertVisible(true);
+    };
 
+    const showConfirm = (title, message, onConfirm, danger = false) => {
+        setConfirmTitle(title);
+        setConfirmMessage(message);
+        setConfirmAction(() => onConfirm);
+        setIsDanger(danger);
+        setConfirmVisible(true);
+    };
+
+    const getFolderKey = () => `FOLDER_PROMPTS_${user?.uid || "guest"}`;
 
     useEffect(() => {
 
         loadFolderPrompts();
 
-    }, []);
+    }, [user?.uid]);
 
     const loadFolderPrompts = async () => {
 
         try {
 
-            const data =
-                await AsyncStorage.getItem(
-                    "FOLDER_PROMPTS"
-                );
+            const key = getFolderKey();
+            let data = await AsyncStorage.getItem(key);
+
+            if (!data && user?.uid) {
+                const legacyData = await AsyncStorage.getItem("FOLDER_PROMPTS");
+                if (legacyData) {
+                    await AsyncStorage.setItem(key, legacyData);
+                    data = legacyData;
+                }
+            }
 
             const parsed =
                 data ? JSON.parse(data) : {};
@@ -102,7 +134,7 @@ export default function FolderScreen({ route, navigation }) {
 
         await Clipboard.setStringAsync(text);
 
-        Alert.alert(
+        showAlert(
             "Copied",
             "Prompt copied successfully"
         );
@@ -113,60 +145,56 @@ export default function FolderScreen({ route, navigation }) {
 
 
 
-    const removeFromFolder = async (
+    const removeFromFolder = (
         indexToRemove
     ) => {
 
-        Alert.alert(
+        showConfirm(
             "Remove Prompt",
             "Remove from this folder only?",
-            [
-                {
-                    text: "Cancel",
-                },
+            async () => {
 
-                {
-                    text: "Remove",
+                try {
 
-                    onPress: async () => {
+                    const key = getFolderKey();
+                    const data =
+                        await AsyncStorage.getItem(key);
 
-                        try {
+                    const parsed =
+                        data
+                            ? JSON.parse(data)
+                            : {};
 
-                            const data =
-                                await AsyncStorage.getItem(
-                                    "FOLDER_PROMPTS"
-                                );
+                    const updatedPrompts =
+                        prompts.filter(
+                            (_, index) =>
+                                index !== indexToRemove
+                        );
 
-                            const parsed =
-                                data
-                                    ? JSON.parse(data)
-                                    : {};
+                    parsed[folder.id] =
+                        updatedPrompts;
 
-                            const updatedPrompts =
-                                prompts.filter(
-                                    (_, index) =>
-                                        index !== indexToRemove
-                                );
+                    await AsyncStorage.setItem(
+                        key,
+                        JSON.stringify(parsed)
+                    );
 
-                            parsed[folder.id] =
-                                updatedPrompts;
+                    setPrompts(updatedPrompts);
 
-                            await AsyncStorage.setItem(
-                                "FOLDER_PROMPTS",
-                                JSON.stringify(parsed)
-                            );
+                    setConfirmVisible(false);
 
-                            setPrompts(updatedPrompts);
+                    showAlert("Success", "Prompt removed from folder");
 
-                        } catch (e) {
+                } catch (e) {
 
-                            console.log(e);
+                    console.log(e);
 
-                        }
+                    setConfirmVisible(false);
 
-                    }
                 }
-            ]
+
+            },
+            true
         );
 
     };
@@ -191,7 +219,8 @@ export default function FolderScreen({ route, navigation }) {
 
 const confirmDeletePrompt = async () => {
     try {
-        const data = await AsyncStorage.getItem("FOLDER_PROMPTS");
+        const key = getFolderKey();
+        const data = await AsyncStorage.getItem(key);
 
         const parsed = data ? JSON.parse(data) : {};
 
@@ -202,14 +231,15 @@ const confirmDeletePrompt = async () => {
         parsed[folder.id] = updatedPrompts;
 
         await AsyncStorage.setItem(
-            "FOLDER_PROMPTS",
+            key,
             JSON.stringify(parsed)
         );
 
         setPrompts(updatedPrompts);
 
         await deletePromptFromHistory(
-            selectedPrompt.id
+            selectedPrompt.id,
+            user?.uid
         );
 
         setShowDeleteAlert(false);
@@ -222,7 +252,7 @@ const confirmDeletePrompt = async () => {
     const openAddPromptModal = async () => {
 
         const data =
-            await getHistory();
+            await getHistory(user?.uid);
 
         setHistoryPrompts(data);
 
@@ -236,10 +266,9 @@ const confirmDeletePrompt = async () => {
 
         try {
 
+            const key = getFolderKey();
             const data =
-                await AsyncStorage.getItem(
-                    "FOLDER_PROMPTS"
-                );
+                await AsyncStorage.getItem(key);
 
             const parsed =
                 data
@@ -257,9 +286,9 @@ const confirmDeletePrompt = async () => {
 
             if (alreadyExists) {
 
-                Alert.alert(
+                showAlert(
                     "Duplicate",
-                    "Prompt already exists"
+                    "Prompt already exists in this folder"
                 );
 
                 return;
@@ -270,7 +299,7 @@ const confirmDeletePrompt = async () => {
             );
 
             await AsyncStorage.setItem(
-                "FOLDER_PROMPTS",
+                key,
                 JSON.stringify(parsed)
             );
 
@@ -278,9 +307,9 @@ const confirmDeletePrompt = async () => {
 
             setAddModal(false);
 
-            Alert.alert(
+            showAlert(
                 "Success",
-                "Prompt added"
+                "Prompt added to folder successfully"
             );
 
         } catch (e) {
@@ -776,6 +805,28 @@ const confirmDeletePrompt = async () => {
 
        
        
+        {/* NORMAL ALERT */}
+        <CustomAlert
+            visible={alertVisible}
+            title={alertTitle}
+            message={alertMessage}
+            onClose={() => setAlertVisible(false)}
+        />
+
+        {/* CONFIRM ALERT (REMOVE FROM FOLDER) */}
+        <CustomAlert
+            visible={confirmVisible}
+            title={confirmTitle}
+            message={confirmMessage}
+            onClose={() => setConfirmVisible(false)}
+            showCancel={true}
+            cancelText="Cancel"
+            confirmText="Remove"
+            danger={isDanger}
+            onConfirm={confirmAction}
+        />
+
+        {/* DELETE PROMPT ALERT */}
         <CustomAlert
             visible={showDeleteAlert}
             title="Delete Prompt?"

@@ -47,6 +47,8 @@ import PrivacyPolicyScreen from "../screens/PrivacyPolicyScreen";
 import TermsScreen from "../screens/TermsScreen";
 import HelpCenterScreen from "../screens/HelpCenterScreen";
 
+import { View, ActivityIndicator } from "react-native";
+
 const Stack =
   createNativeStackNavigator();
 
@@ -59,7 +61,11 @@ export default function RootNavigator() {
   } = useContext(UserContext);
 
   if (loading) {
-    return null;
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: theme.background }}>
+        <ActivityIndicator size="large" color={theme.primary} />
+      </View>
+    );
   }
 
 

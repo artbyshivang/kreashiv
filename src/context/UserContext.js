@@ -1,4 +1,4 @@
-import React, {
+import {
   createContext,
   useEffect,
   useState,
@@ -8,26 +8,32 @@ import auth from "../firebase/auth";
 
 import {
   onAuthStateChanged,
-  signOut,
   reload,
+  signOut,
 } from "firebase/auth";
 
 import {
   doc,
   getDoc,
   updateDoc,
+  onSnapshot,
 } from "firebase/firestore";
 
 import { db } from "../firebase/config";
-
 import { registerForPushNotificationsAsync } from "../utils/notifications";
+import * as SplashScreen from "expo-splash-screen";
 
 export const UserContext = createContext();
 
 export function UserProvider({ children }) {
   const [user, setUser] = useState(null);
-
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!loading) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [loading]);
 
   useEffect(() => {
     if (!auth) {
@@ -35,72 +41,89 @@ export function UserProvider({ children }) {
       setLoading(false);
       return;
     }
+
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 3000);
+
+    let unsubSnapshot = null;
+
     const unsubscribe = onAuthStateChanged(
       auth,
       async (currentUser) => {
+        if (unsubSnapshot) {
+          unsubSnapshot();
+          unsubSnapshot = null;
+        }
+
         if (currentUser) {
-          try {
-            await reload(currentUser);
-          } catch (e) {
-            console.log("Failed to reload user on auth state change:", e);
-          }
-
-          if (!currentUser.emailVerified) {
-
-          setUser({
-            ...currentUser,
-            emailVerified: false,
+          const extractAuthData = (u) => ({
+            uid: u.uid,
+            email: u.email,
+            displayName: u.displayName,
+            phoneNumber: u.phoneNumber,
+            emailVerified: u.emailVerified,
+            photoURL: u.photoURL,
           });
 
+          const baseAuthData = extractAuthData(currentUser);
+
+          // Set user immediately so app screen opens instantly
+          setUser(baseAuthData);
           setLoading(false);
 
-          return;
-        }
+          // Non-blocking reload attempt in background
+          reload(currentUser).catch((e) =>
+            console.log("Background user reload error:", e)
+          );
 
-          try {
-            const userRef = doc(
-              db,
-              "users",
-              currentUser.uid
-            );
-
-
-            const userSnap = await getDoc(userRef);
-
-            if (userSnap.exists()) {
-              setUser({
-                ...currentUser,
-                ...userSnap.data(),
-              });
-
-              // PUSH TOKEN SAVE
-              const token =
-                await registerForPushNotificationsAsync();
-
-              if (token) {
-                await updateDoc(userRef, {
-                  pushToken: token,
-                });
-              }
-
-            } else {
-              setUser(currentUser);
-            }
-
-          } catch (error) {
-            console.log(error);
-            setUser(currentUser);
+          if (!currentUser.emailVerified) {
+            return;
           }
 
+          try {
+            if (db) {
+              const userRef = doc(db, "users", currentUser.uid);
+
+              // Real-time listener for Firestore user document (updates in background)
+              unsubSnapshot = onSnapshot(
+                userRef,
+                (userSnap) => {
+                  if (userSnap.exists()) {
+                    setUser((prev) => ({
+                      ...prev,
+                      ...userSnap.data(),
+                    }));
+                  }
+                },
+                (error) => {
+                  console.log("Firestore snapshot error:", error);
+                }
+              );
+
+              // Save push token if available
+              registerForPushNotificationsAsync().then((token) => {
+                if (token) {
+                  updateDoc(userRef, { pushToken: token }).catch((err) =>
+                    console.log("Push token update error:", err)
+                  );
+                }
+              }).catch(() => {});
+            }
+          } catch (error) {
+            console.log("User doc setup error:", error);
+          }
         } else {
           setUser(null);
+          setLoading(false);
         }
-
-        setLoading(false);
       }
     );
 
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+      if (unsubSnapshot) unsubSnapshot();
+    };
   }, []);
 
   const logout = async () => {

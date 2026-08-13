@@ -98,6 +98,11 @@ if (!data.success) {
                 email: email,
                 phone: phone,
                 premium: false,
+                dailyUsage: {
+                    date: new Date().toISOString().split("T")[0],
+                    count: 0,
+                },
+                credits: 1000,
                 createdAt: serverTimestamp(),
             }
         );

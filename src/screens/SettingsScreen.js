@@ -21,7 +21,12 @@ import { updateDoc } from "firebase/firestore";
 import CustomAlert from "../components/CustomAlert";
 import { registerForPushNotificationsAsync } from "../utils/notifications";
 
-import { deleteUser } from "firebase/auth";
+import {
+  deleteUser,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
+  signOut,
+} from "firebase/auth";
 
 import auth from "../firebase/auth";
 
@@ -52,9 +57,12 @@ export default function SettingsScreen() {
   const [callingCode, setCallingCode] = useState("91");
 
   const { theme } = useContext(ThemeContext);
-  const { user, setUser } = useContext(UserContext);
+  const { user, setUser, logout } = useContext(UserContext);
 
   const [profileImage, setProfileImage] = useState(null);
+  const [deletePasswordModalVisible, setDeletePasswordModalVisible] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
 
 const [alertVisible, setAlertVisible] = useState(false);
@@ -98,15 +106,15 @@ const showConfirm = (
     setFieldTitle(type);
 
     if (type === "Name") {
-      setInputValue(user.name);
+      setInputValue(user?.name || user?.displayName || "");
     }
 
     if (type === "Email") {
-      setInputValue(user.email);
+      setInputValue(user?.email || "");
     }
 
     if (type === "Phone") {
-      setInputValue(user.phone);
+      setInputValue(user?.phone || user?.phoneNumber || "");
     }
 
     setModalVisible(true);
@@ -118,7 +126,7 @@ const showConfirm = (
     "Are you sure you want to delete all search history?",
     async () => {
       try {
-        await clearHistory();
+        await clearHistory(user?.uid);
 
         setConfirmVisible(false);
 
@@ -143,47 +151,93 @@ const showConfirm = (
 
 
   const handleDeleteAccount = () => {
-  showConfirm(
-    "Delete Account",
-    "This action cannot be undone.",
-    async () => {
-      try {
-        const currentUser = auth.currentUser;
-
-        if (!currentUser) return;
-
-        /* DELETE FIRESTORE DATA */
-        await deleteDoc(
-          doc(db, "users", currentUser.uid)
-        );
-
-        /* DELETE AUTH ACCOUNT */
-        await deleteUser(currentUser);
-
-        /* LOGOUT */
-        setUser(null);
-
+    showConfirm(
+      "Delete Account",
+      "This action cannot be undone. Are you sure you want to delete your account permanently?",
+      () => {
         setConfirmVisible(false);
+        setDeletePassword("");
+        setDeletePasswordModalVisible(true);
+      },
+      true
+    );
+  };
 
-        showAlert(
-          "Success",
-          "Account deleted successfully."
-        );
+  const performAccountDeletion = async (password) => {
+    setIsDeleting(true);
+    try {
+      const currentUser = auth.currentUser;
 
-      } catch (error) {
-        console.log(error);
-
-        setConfirmVisible(false);
-
-        showAlert(
-          "Error",
-          error.message
-        );
+      if (!currentUser) {
+        setDeletePasswordModalVisible(false);
+        setIsDeleting(false);
+        showAlert("Error", "No active user session found. Please log in again.");
+        return;
       }
-    },
-    true
-  );
-};
+
+      const uid = currentUser.uid;
+
+      /* 1. RE-AUTHENTICATE USER IF PASSWORD PROVIDED */
+      if (password && currentUser.email) {
+        const credential = EmailAuthProvider.credential(
+          currentUser.email,
+          password
+        );
+        await reauthenticateWithCredential(currentUser, credential);
+      }
+
+      /* 2. DELETE AUTH ACCOUNT FIRST */
+      await deleteUser(currentUser);
+
+      /* 3. DELETE FIRESTORE USER DOCUMENT */
+      try {
+        await deleteDoc(doc(db, "users", uid));
+      } catch (fsErr) {
+        console.log("Firestore deletion error:", fsErr);
+      }
+
+      /* 4. CLEAR LOCAL STORAGE */
+      try {
+        await clearHistory(uid);
+        await AsyncStorage.removeItem(`profileImage_${uid}`);
+        await AsyncStorage.removeItem(`APP_FOLDERS_${uid}`);
+      } catch (stErr) {
+        console.log("Local storage clear error:", stErr);
+      }
+
+      setDeletePasswordModalVisible(false);
+      setIsDeleting(false);
+
+      /* 5. LOGOUT & RESET USER STATE */
+      try {
+        await signOut(auth);
+      } catch (soErr) {
+        console.log("Signout error:", soErr);
+      }
+      setUser(null);
+
+      showAlert("Success", "Account deleted successfully.");
+
+    } catch (error) {
+      console.log("Account deletion error:", error);
+      setIsDeleting(false);
+
+      let errorMsg = error.message;
+
+      if (
+        error.code === "auth/wrong-password" ||
+        error.code === "auth/invalid-credential"
+      ) {
+        errorMsg = "Incorrect password. Please enter your correct account password.";
+      } else if (error.code === "auth/requires-recent-login") {
+        errorMsg = "Security requirement: Please re-enter your password to confirm account deletion.";
+        setDeletePasswordModalVisible(true);
+        return;
+      }
+
+      showAlert("Error", errorMsg);
+    }
+  };
 
 
 
@@ -520,7 +574,7 @@ useEffect(() => {
 
                     setModalVisible(false);
 
-                    Alert.alert(
+                    showAlert(
                       "Success",
                       `${fieldTitle} updated successfully`
                     );
@@ -529,7 +583,7 @@ useEffect(() => {
 
                     console.log(error);
 
-                    Alert.alert(
+                    showAlert(
                       "Error",
                       "Update failed"
                     );
@@ -574,6 +628,7 @@ useEffect(() => {
           <Row
             icon="person-outline"
             title="Change Name"
+            subtitle={user?.name || user?.displayName || "Not set"}
             onPress={() => openEditor("Name")}
             theme={theme}
           />
@@ -581,7 +636,7 @@ useEffect(() => {
           <Row
             icon="call-outline"
             title="Phone Number"
-            subtitle={`+${callingCode} ${user.phone}`}
+            subtitle={user?.phone ? `+${callingCode} ${user.phone}` : (user?.phoneNumber ? user.phoneNumber : "Not provided")}
             onPress={() => openEditor("Phone")}
             theme={theme}
           />
@@ -589,7 +644,7 @@ useEffect(() => {
           <Row
             icon="mail-outline"
             title="Email Address"
-            subtitle={user.email}
+            subtitle={user?.email || "Not provided"}
             onPress={() => openEditor("Email")}
             theme={theme}
           />
@@ -709,7 +764,16 @@ useEffect(() => {
         </Card>
 
         {/* LOGOUT */}
-        <TouchableOpacity style={{ marginTop: 40, alignItems: 'center' }}>
+        <TouchableOpacity
+          onPress={async () => {
+            try {
+              await logout();
+            } catch (e) {
+              console.log(e);
+            }
+          }}
+          style={{ marginTop: 40, alignItems: 'center' }}
+        >
           <Text style={{ color: '#ef4444', fontWeight: '600', fontSize: 16 }}>
             Log Out
           </Text>
@@ -738,6 +802,114 @@ useEffect(() => {
       danger={isDanger}
       onConfirm={confirmAction}
     />
+
+    {/* DELETE ACCOUNT PASSWORD CONFIRMATION MODAL */}
+    <Modal
+      visible={deletePasswordModalVisible}
+      transparent
+      animationType="fade"
+    >
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: "rgba(0,0,0,0.5)",
+          justifyContent: "center",
+          paddingHorizontal: 20,
+        }}
+      >
+        <View
+          style={{
+            backgroundColor: theme.card,
+            borderRadius: 24,
+            padding: 22,
+            borderWidth: 1,
+            borderColor: theme.border,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 20,
+              fontWeight: "800",
+              color: theme.text,
+              marginBottom: 8,
+            }}
+          >
+            Confirm Account Deletion
+          </Text>
+
+          <Text
+            style={{
+              fontSize: 14,
+              color: theme.subText,
+              marginBottom: 16,
+            }}
+          >
+            Please enter your password to permanently delete your account.
+          </Text>
+
+          <TextInput
+            value={deletePassword}
+            onChangeText={setDeletePassword}
+            placeholder="Enter your password"
+            placeholderTextColor={theme.subText}
+            secureTextEntry
+            style={{
+              backgroundColor: theme.background,
+              borderWidth: 1,
+              borderColor: theme.border,
+              borderRadius: 14,
+              paddingHorizontal: 16,
+              paddingVertical: 12,
+              color: theme.text,
+              fontSize: 16,
+              marginBottom: 20,
+            }}
+          />
+
+          <View style={{ flexDirection: "row" }}>
+            <TouchableOpacity
+              disabled={isDeleting}
+              onPress={() => {
+                setDeletePasswordModalVisible(false);
+                setDeletePassword("");
+              }}
+              style={{
+                flex: 1,
+                paddingVertical: 14,
+                borderRadius: 14,
+                alignItems: "center",
+                backgroundColor: theme.background,
+                marginRight: 8,
+                borderWidth: 1,
+                borderColor: theme.border,
+              }}
+            >
+              <Text style={{ color: theme.text, fontWeight: "700" }}>
+                Cancel
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              disabled={isDeleting}
+              onPress={() => performAccountDeletion(deletePassword)}
+              style={{
+                flex: 1,
+                paddingVertical: 14,
+                borderRadius: 14,
+                alignItems: "center",
+                backgroundColor: "#ef4444",
+                marginLeft: 8,
+                opacity: isDeleting ? 0.6 : 1,
+              }}
+            >
+              <Text style={{ color: "#fff", fontWeight: "800" }}>
+                {isDeleting ? "Deleting..." : "Delete Account"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
 
 </View>
   );

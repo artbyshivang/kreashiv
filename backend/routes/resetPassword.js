@@ -14,9 +14,17 @@ router.post("/send-reset-email", async (req, res) => {
 
     const { email } = req.body;
 
-    const resetLink = await admin
+    const actionCodeSettings = {
+      url: process.env.AUTH_ACTION_URL || "https://kreashiv.cloud/auth-action.html",
+      handleCodeInApp: false,
+    };
+
+    const rawLink = await admin
       .auth()
-      .generatePasswordResetLink(email);
+      .generatePasswordResetLink(email, actionCodeSettings);
+
+    const customDomain = process.env.AUTH_ACTION_URL || "https://kreashiv.cloud/auth-action.html";
+    const resetLink = rawLink.replace(/https:\/\/[^/]+\/__\/auth\/action/, customDomain);
 
     const response = await resend.emails.send({
       from: "Kreashiv <noreply@kreashiv.cloud>",

@@ -14,10 +14,19 @@ router.post("/send-verification-email", async (req, res) => {
 
     const { email } = req.body;
 
-    // Generate Firebase Email Verification link
-    const verificationLink = await admin
+    // Generate Firebase Email Verification link with actionCodeSettings for Custom Domain
+    const actionCodeSettings = {
+      url: process.env.AUTH_ACTION_URL || "https://kreashiv.cloud/auth-action.html",
+      handleCodeInApp: false,
+    };
+
+    const rawLink = await admin
       .auth()
-      .generateEmailVerificationLink(email);
+      .generateEmailVerificationLink(email, actionCodeSettings);
+
+    // Ensure the link explicitly targets custom domain landing page
+    const customDomain = process.env.AUTH_ACTION_URL || "https://kreashiv.cloud/auth-action.html";
+    const verificationLink = rawLink.replace(/https:\/\/[^/]+\/__\/auth\/action/, customDomain);
 
     // Send using Resend
     const response = await resend.emails.send({

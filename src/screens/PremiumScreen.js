@@ -1,18 +1,132 @@
-import React, { useState, useContext } from "react";
+import { Ionicons } from "@expo/vector-icons";
+
+import { useContext, useEffect, useState } from "react";
 import {
-  View,
-  Text,
   ScrollView,
+  Text,
   TouchableOpacity,
+  View,
 } from "react-native";
 import Header from "../components/Header";
-import { Ionicons } from "@expo/vector-icons";
+import billingService from "../services/billingService";
 import { ThemeContext } from "../theme/ThemeContext";
 
+
+import { useNavigation } from "@react-navigation/native";
+import CustomAlert from "../components/CustomAlert";
+import { UserContext } from "../context/UserContext";
+
 export default function PremiumScreen() {
+  const navigation = useNavigation();
   const { theme } = useContext(ThemeContext);
+  const { user, setUser } = useContext(UserContext);
+
+  const isPremiumUser = user?.premium || false;
 
   const [selectedPlan, setSelectedPlan] = useState("monthly");
+  const [loading, setLoading] = useState(false);
+
+  const [subscriptions, setSubscriptions] = useState([]);
+
+  // DYNAMIC CURRENCY & LOCATION STATE
+  const [countryCode, setCountryCode] = useState("IN");
+
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState("");
+  const [alertMessage, setAlertMessage] = useState("");
+
+  useEffect(() => {
+    detectLocation();
+    initializeBilling();
+
+    return () => {
+      billingService.disconnect();
+    };
+  }, []);
+
+  const detectLocation = async () => {
+    try {
+      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+      let detectedIsIndia = timeZone.includes("Kolkata") || timeZone.includes("Calcutta");
+
+      if (!detectedIsIndia) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2500);
+
+        const res = await fetch("https://ipapi.co/json/", { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        const data = await res.json();
+        if (data && data.country_code) {
+          detectedIsIndia = data.country_code === "IN";
+        }
+      }
+
+      setCountryCode(detectedIsIndia ? "IN" : "US");
+    } catch (e) {
+      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+      const isIndiaTimezone = timeZone.includes("Kolkata") || timeZone.includes("Calcutta");
+      setCountryCode(isIndiaTimezone ? "IN" : "US");
+    }
+  };
+
+  const initializeBilling = async () => {
+    const connected = await billingService.connect();
+
+    if (!connected) {
+      console.log("Billing connection failed");
+      return;
+    }
+
+    const products = await billingService.getSubscriptions();
+
+    setSubscriptions(products);
+
+    console.log("Subscriptions:", products);
+  };
+
+
+
+
+  const prices = countryCode === "IN" ? {
+    free: "₹0",
+    monthly: "₹149",
+    quarterly: "₹399",
+    miniBooster: "₹49",
+    powerBooster: "₹89",
+  } : {
+    free: "$0",
+    monthly: "$1.99",
+    quarterly: "$4.99",
+    miniBooster: "$0.99",
+    powerBooster: "$1.49",
+  };
+
+  const showAlert = (title, message) => {
+    setAlertTitle(title);
+    setAlertMessage(message);
+    setAlertVisible(true);
+  };
+
+  const handleUpgrade = async () => {
+    if (!user?.uid) {
+      showAlert("Error", "Please log in first.");
+      return;
+    }
+
+    if (selectedPlan === "free") {
+      showAlert(
+        "Free Plan",
+        "You are currently using the Free Plan."
+      );
+      return;
+    }
+
+    showAlert(
+      "Purchases Temporarily Unavailable",
+      "Google Play purchases are currently unavailable while merchant verification is in progress. Please try again later."
+    );
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
@@ -112,7 +226,7 @@ export default function PremiumScreen() {
         {/* FREE PLAN */}
         <PlanCard
           title="Free Plan"
-          price="₹0"
+          price={prices.free}
           subtitle="Perfect to get started"
           points={[
             "Ads Supported",
@@ -128,7 +242,7 @@ export default function PremiumScreen() {
         {/* MONTHLY */}
         <PlanCard
           title="Monthly Pro"
-          price="₹149"
+          price={prices.monthly}
           subtitle="/month"
           badge="MOST POPULAR"
           points={[
@@ -148,7 +262,7 @@ export default function PremiumScreen() {
         {/* QUARTERLY */}
         <PlanCard
           title="Quarterly Pro"
-          price="₹399"
+          price={prices.quarterly}
           subtitle="/3 months"
           badge="SAVE 11%"
           points={[
@@ -165,43 +279,49 @@ export default function PremiumScreen() {
         />
 
         {/* BOOSTERS TITLE */}
-        <Text
-          style={{
-            fontSize: 18,
-            fontWeight: "700",
-            color: theme.text,
-            marginTop: 28,
-            marginBottom: 12,
-          }}
-        >
-          Credit Boosters
-        </Text>
+        {isPremiumUser && (
+          <>
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "700",
+                color: theme.text,
+                marginTop: 28,
+                marginBottom: 12,
+              }}
+            >
+              Credit Boosters
+            </Text>
 
-        {/* BOOSTERS */}
-        <View style={{ flexDirection: "row" }}>
-          <BoosterCard
-            icon="flash"
-            title="Mini Booster"
-            price="₹49"
-            credits="500 Credits"
-            desc="Perfect for quick top-ups"
-            theme={theme}
-          />
+            {/* BOOSTERS */}
+            <View style={{ flexDirection: "row" }}>
+              <BoosterCard
+                icon="flash"
+                title="Mini Booster"
+                price={prices.miniBooster}
+                credits="500 Credits"
+                desc="Perfect for quick top-ups"
+                theme={theme}
+              />
 
-          <BoosterCard
-            icon="rocket"
-            title="Power Booster"
-            price="₹89"
-            credits="1,200 Credits"
-            desc="Best for power users"
-            highlight
-            theme={theme}
-          />
-        </View>
+              <BoosterCard
+                icon="rocket"
+                title="Power Booster"
+                price={prices.powerBooster}
+                credits="1,200 Credits"
+                desc="Best for power users"
+                highlight
+                theme={theme}
+              />
+            </View>
+          </>
+        )}
 
         {/* UPGRADE BUTTON */}
         <TouchableOpacity
           activeOpacity={0.9}
+          onPress={handleUpgrade}
+          disabled={loading}
           style={{
             backgroundColor: theme.primary,
             paddingVertical: 18,
@@ -209,6 +329,7 @@ export default function PremiumScreen() {
             alignItems: "center",
             marginTop: 35,
             marginBottom: 20,
+            opacity: loading ? 0.7 : 1,
           }}
         >
           <Text
@@ -218,10 +339,17 @@ export default function PremiumScreen() {
               fontWeight: "800",
             }}
           >
-            Continue to Upgrade →
+            {loading ? "Processing..." : "Continue to Upgrade →"}
           </Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <CustomAlert
+        visible={alertVisible}
+        title={alertTitle}
+        message={alertMessage}
+        onClose={() => setAlertVisible(false)}
+      />
     </View>
   );
 }

@@ -1,21 +1,19 @@
-import React, { useContext, useEffect, } from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  Image,
-  Switch,
-  Modal,
-} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import { ThemeContext } from "../theme/ThemeContext";
+import { useContext, useEffect, } from "react";
+import {
+  Image,
+  Modal,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View
+} from "react-native";
 import { UserContext } from "../context/UserContext";
+import { ThemeContext } from "../theme/ThemeContext";
 
 import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
-import auth from "../firebase/auth";
 import CustomAlert from "../components/CustomAlert";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -36,42 +34,42 @@ export default function ProfileScreen() {
     user,
     logout,
   } = useContext(UserContext);
-  
-
-const [profileImage, setProfileImage] =
-  useState(user?.photoURL || null);
-
-useEffect(() => {
-
-  loadProfileImage();
-
-}, []);
-
-const loadProfileImage = async () => {
-  try {
-    if (!user?.uid) return;
-
-    const savedImage = await AsyncStorage.getItem(
-      `profileImage_${user.uid}`
-    );
-
-    setProfileImage(savedImage || null);
-    
-  } catch (error) {
-    console.log(error);
-  }
-};
 
 
-const [alertVisible, setAlertVisible] = useState(false);
-const [alertTitle, setAlertTitle] = useState("");
-const [alertMessage, setAlertMessage] = useState("");
+  const [profileImage, setProfileImage] =
+    useState(user?.photoURL || null);
 
-const showAlert = (title, message) => {
-  setAlertTitle(title);
-  setAlertMessage(message);
-  setAlertVisible(true);
-};
+  useEffect(() => {
+
+    loadProfileImage();
+
+  }, []);
+
+  const loadProfileImage = async () => {
+    try {
+      if (!user?.uid) return;
+
+      const savedImage = await AsyncStorage.getItem(
+        `profileImage_${user.uid}`
+      );
+
+      setProfileImage(savedImage || null);
+
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState("");
+  const [alertMessage, setAlertMessage] = useState("");
+
+  const showAlert = (title, message) => {
+    setAlertTitle(title);
+    setAlertMessage(message);
+    setAlertVisible(true);
+  };
 
 
 
@@ -99,90 +97,90 @@ const showAlert = (title, message) => {
   };
 
 
-/* remove imagw option */
+  /* remove imagw option */
 
 
 
 
-/*image my upload */
+  /*image my upload */
 
-const pickImage = async () => {
-  try {
-    if (!user?.uid) return;
+  const pickImage = async () => {
+    try {
+      if (!user?.uid) return;
 
-    const permission =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const permission =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-    if (!permission.granted) {
-      showAlert("Permission", "Gallery permission required");
-      return;
+      if (!permission.granted) {
+        showAlert("Permission", "Gallery permission required");
+        return;
+      }
+
+      const result =
+        await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.7,
+        });
+
+      if (!result.canceled) {
+        const imageUri = result.assets[0].uri;
+
+        setProfileImage(imageUri);
+
+        await AsyncStorage.setItem(
+          `profileImage_${user.uid}`,
+          imageUri
+        );
+
+        showAlert("Success", "Profile photo updated");
+      }
+
+    } catch (error) {
+      console.log(error);
+      showAlert("Error", "Image upload failed");
     }
+  };
 
-    const result =
-      await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.7,
-      });
 
-    if (!result.canceled) {
-      const imageUri = result.assets[0].uri;
 
-      setProfileImage(imageUri);
 
-      await AsyncStorage.setItem(
-        `profileImage_${user.uid}`,
-        imageUri
+  const [photoOptionsVisible, setPhotoOptionsVisible] = useState(false);
+
+
+  const openImageOptions = () => {
+    setPhotoOptionsVisible(true);
+  };
+
+  const removeImage = async () => {
+    try {
+
+      if (!user?.uid) return;
+
+      // UI se image hatao
+      setProfileImage(null);
+
+      // Storage se remove karo
+      await AsyncStorage.removeItem(
+        `profileImage_${user.uid}`
       );
 
-      showAlert("Success", "Profile photo updated");
+      showAlert(
+        "Success",
+        "Profile photo removed"
+      );
+
+    } catch (error) {
+
+      console.log(error);
+
+      showAlert(
+        "Error",
+        "Failed to remove image"
+      );
     }
-
-  } catch (error) {
-    console.log(error);
-    showAlert("Error", "Image upload failed");
-  }
-};
-
-
-
-
-const [photoOptionsVisible, setPhotoOptionsVisible] = useState(false);
-
-
-const openImageOptions = () => {
-  setPhotoOptionsVisible(true);
-};
-
-const removeImage = async () => {
-  try {
-
-    if (!user?.uid) return;
-
-    // UI se image hatao
-    setProfileImage(null);
-
-    // Storage se remove karo
-    await AsyncStorage.removeItem(
-      `profileImage_${user.uid}`
-    );
-
-    showAlert(
-      "Success",
-      "Profile photo removed"
-    );
-
-  } catch (error) {
-
-    console.log(error);
-
-    showAlert(
-      "Error",
-      "Failed to remove image"
-    );
-  }
-};
+  };
 
 
 
@@ -193,7 +191,7 @@ const removeImage = async () => {
 
 
   const showStats = false;
- const isPremiumUser = user?.premium || false;
+  const isPremiumUser = user?.premium || false;
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
 
@@ -233,49 +231,49 @@ const removeImage = async () => {
         <View style={{ alignItems: 'center', marginTop: 24, marginBottom: 24 }}>
           <View style={{ position: 'relative' }}>
 
-    <TouchableOpacity onPress={openImageOptions} activeOpacity={0.8}>
-  <View
-    style={{
-      padding: 3,
-      borderRadius: 52,
-      borderWidth: 2,
-      borderColor: theme.primary,
+            <TouchableOpacity onPress={openImageOptions} activeOpacity={0.8}>
+              <View
+                style={{
+                  padding: 3,
+                  borderRadius: 52,
+                  borderWidth: 2,
+                  borderColor: theme.primary,
 
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.12,
-      shadowRadius: 8,
-      elevation: 6,
-    }}
-  >
-    <Image
-      source={
-        profileImage
-          ? { uri: profileImage }
-          : require("../../assets/images/default-avatar.png")
-      }
-      style={{
-        width: 96,
-        height: 96,
-        borderRadius: 48,
-      }}
-    />
-  </View>
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.12,
+                  shadowRadius: 8,
+                  elevation: 6,
+                }}
+              >
+                <Image
+                  source={
+                    profileImage
+                      ? { uri: profileImage }
+                      : require("../../assets/images/default-avatar.png")
+                  }
+                  style={{
+                    width: 96,
+                    height: 96,
+                    borderRadius: 48,
+                  }}
+                />
+              </View>
 
-  <View
-    style={{
-      position: "absolute",
-      bottom: 0,
-      right: 0,
-      backgroundColor: "#4ade80",
-      padding: 8,
-      borderRadius: 16,
-    }}
-  >
-    <Ionicons name="camera" size={16} color="black" />
-  </View>
-</TouchableOpacity>
-            
+              <View
+                style={{
+                  position: "absolute",
+                  bottom: 0,
+                  right: 0,
+                  backgroundColor: "#4ade80",
+                  padding: 8,
+                  borderRadius: 16,
+                }}
+              >
+                <Ionicons name="camera" size={16} color="black" />
+              </View>
+            </TouchableOpacity>
+
           </View>
 
           <Text style={{ fontSize: 24, fontWeight: 'bold', color: theme.primary, marginTop: 12 }}>
@@ -589,27 +587,27 @@ const removeImage = async () => {
         {/* SUPPORT */}
         <Section title="SUPPORT" theme={theme} />
         <Card theme={theme}>
-      
-        <TouchableOpacity
-        onPress={() => navigation.navigate("HelpCenter")}
-        >
-       {renderRow("help-circle-outline", "Help Center", null, theme)}
-      </TouchableOpacity>
-         
-         
-         
+
           <TouchableOpacity
-           onPress={() => navigation.navigate("PrivacyPolicy")}
+            onPress={() => navigation.navigate("HelpCenter")}
+          >
+            {renderRow("help-circle-outline", "Help Center", null, theme)}
+          </TouchableOpacity>
+
+
+
+          <TouchableOpacity
+            onPress={() => navigation.navigate("PrivacyPolicy")}
           >
             {renderRow("document-text-outline", "Privacy Policy", null, theme)}
           </TouchableOpacity>
-         
-         
-         
+
+
+
           <TouchableOpacity
-          onPress={() => navigation.navigate("Terms")}
+            onPress={() => navigation.navigate("Terms")}
           >
-          {renderRow("document-outline", "Terms & Conditions", null, theme)}
+            {renderRow("document-outline", "Terms & Conditions", null, theme)}
           </TouchableOpacity>
         </Card>
 
@@ -626,7 +624,7 @@ const removeImage = async () => {
         </TouchableOpacity>
 
         <Text style={{ color: theme.subText, fontSize: 12, marginTop: 16, textAlign: 'center' }}>
-          App Version 1.0.0
+          App Version 3.0.0
         </Text>
 
 
@@ -635,103 +633,103 @@ const removeImage = async () => {
 
       </ScrollView>
 
-      
 
 
 
-  <CustomAlert
-  visible={alertVisible}
-  title={alertTitle}
-  message={alertMessage}
-  onClose={() => setAlertVisible(false)}
-/>
+
+      <CustomAlert
+        visible={alertVisible}
+        title={alertTitle}
+        message={alertMessage}
+        onClose={() => setAlertVisible(false)}
+      />
 
 
 
-  <Modal
-  transparent
-  visible={photoOptionsVisible}
-  animationType="fade"
->
-  <View
-    style={{
-      flex: 1,
-      backgroundColor: "rgba(0,0,0,0.5)",
-      justifyContent: "center",
-      alignItems: "center",
-      padding: 24,
-    }}
-  >
-    <View
-      style={{
-        width: "100%",
-        backgroundColor: theme.card,
-        borderRadius: 20,
-        padding: 24,
-      }}
-    >
-      <Text
-        style={{
-          fontSize: 20,
-          fontWeight: "bold",
-          color: theme.text,
-          marginBottom: 20,
-        }}
+      <Modal
+        transparent
+        visible={photoOptionsVisible}
+        animationType="fade"
       >
-        Profile Photo
-      </Text>
-
-      <TouchableOpacity
-        onPress={() => {
-          setPhotoOptionsVisible(false);
-          pickImage();
-        }}
-      >
-        <Text
+        <View
           style={{
-            color: theme.primary,
-            fontSize: 16,
-            marginBottom: 16,
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: 24,
           }}
         >
-          Upload New Photo
-        </Text>
-      </TouchableOpacity>
-
-      {profileImage && (
-        <TouchableOpacity
-          onPress={() => {
-            setPhotoOptionsVisible(false);
-            removeImage();
-          }}
-        >
-          <Text
+          <View
             style={{
-              color: "red",
-              fontSize: 16,
-              marginBottom: 16,
+              width: "100%",
+              backgroundColor: theme.card,
+              borderRadius: 20,
+              padding: 24,
             }}
           >
-            Remove Photo
-          </Text>
-        </TouchableOpacity>
-      )}
+            <Text
+              style={{
+                fontSize: 20,
+                fontWeight: "bold",
+                color: theme.text,
+                marginBottom: 20,
+              }}
+            >
+              Profile Photo
+            </Text>
 
-      <TouchableOpacity
-        onPress={() => setPhotoOptionsVisible(false)}
-      >
-        <Text
-          style={{
-            color: theme.subText,
-            fontSize: 16,
-          }}
-        >
-          Cancel
-        </Text>
-      </TouchableOpacity>
-    </View>
-  </View>
-</Modal>
+            <TouchableOpacity
+              onPress={() => {
+                setPhotoOptionsVisible(false);
+                pickImage();
+              }}
+            >
+              <Text
+                style={{
+                  color: theme.primary,
+                  fontSize: 16,
+                  marginBottom: 16,
+                }}
+              >
+                Upload New Photo
+              </Text>
+            </TouchableOpacity>
+
+            {profileImage && (
+              <TouchableOpacity
+                onPress={() => {
+                  setPhotoOptionsVisible(false);
+                  removeImage();
+                }}
+              >
+                <Text
+                  style={{
+                    color: "red",
+                    fontSize: 16,
+                    marginBottom: 16,
+                  }}
+                >
+                  Remove Photo
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              onPress={() => setPhotoOptionsVisible(false)}
+            >
+              <Text
+                style={{
+                  color: theme.subText,
+                  fontSize: 16,
+                }}
+              >
+                Cancel
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
 
     </View>
@@ -779,9 +777,9 @@ function renderRow(icon, label, rightText, theme) {
       ) : (
         <Ionicons name="chevron-forward" size={20} color={theme.subText} />
       )}
-    
-    
-     
+
+
+
     </View>
   );
 }

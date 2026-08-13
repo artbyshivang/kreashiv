@@ -1,42 +1,62 @@
-import React, { useState, useEffect, useContext } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import {
-  View,
+  ScrollView,
   Text,
   TextInput,
-  ScrollView,
   TouchableOpacity,
-  Switch,
+  View
 } from 'react-native';
 
 import {
   BannerAd,
   BannerAdSize,
-  InterstitialAd,
-  AdEventType
+  TestIds,
+  useInterstitialAd
 } from "react-native-google-mobile-ads";
 
+const interstitialAdUnitId = __DEV__
+  ? TestIds.INTERSTITIAL
+  : "ca-app-pub-2777387455378814/5275083410";
+
+const bannerAdUnitId = __DEV__
+  ? TestIds.BANNER
+  : "ca-app-pub-2777387455378814/8284390134";
 
 
 
-import { ActivityIndicator } from "react-native";
-import CustomAlert from "../components/CustomAlert";
-import model from "../api/gemini";
-import Header from '../components/Header';
+
 import { Ionicons } from '@expo/vector-icons';
-import AnimatedToggle from "../components/AnimatedToggle";
 import { useRoute } from "@react-navigation/native";
-import { ThemeContext } from "../theme/ThemeContext";
-import { UserContext } from "../context/UserContext";
 import * as Clipboard from 'expo-clipboard';
+import { ActivityIndicator } from "react-native";
+import model from "../api/gemini";
+import AnimatedToggle from "../components/AnimatedToggle";
+import CustomAlert from "../components/CustomAlert";
+import Header from '../components/Header';
+import { UserContext } from "../context/UserContext";
 import { savePromptToHistory } from "../storage/historyStorage";
+import { ThemeContext } from "../theme/ThemeContext";
+import { doc, updateDoc } from "firebase/firestore";
+import { db } from "../firebase/config";
+
 export default function HomeScreen() {
   const [generateCount, setGenerateCount] = useState(0);
 
-  const interstitial = InterstitialAd.createForAdRequest(
-    "ca-app-pub-2777387455378814/5275083410"
-  );
-  
-  
+  const { isLoaded, isClosed, load, show } = useInterstitialAd(interstitialAdUnitId, {
+    requestNonPersonalizedAdsOnly: true,
+  });
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  useEffect(() => {
+    if (isClosed) {
+      load();
+    }
+  }, [isClosed]);
+
+
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertTitle, setAlertTitle] = useState("");
   const [alertMessage, setAlertMessage] = useState("");
@@ -44,15 +64,15 @@ export default function HomeScreen() {
   const [generatedPrompt, setGeneratedPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   /* USER PLAN */
-  
+
   const route = useRoute();
   const { theme } = useContext(ThemeContext);
 
 
   const { user } = useContext(UserContext);
 
-const isPremiumUser =
-  user?.premium || false;
+  const isPremiumUser =
+    user?.premium || false;
 
   /* INPUT */
   const [input, setInput] = useState("");
@@ -84,30 +104,55 @@ const isPremiumUser =
   }, [promptType]);
 
   const showAlert = (title, message) => {
-  setAlertTitle(title);
-  setAlertMessage(message);
-  setAlertVisible(true);
-};
-  
+    setAlertTitle(title);
+    setAlertMessage(message);
+    setAlertVisible(true);
+  };
+
   /* GENERATE */
   const handleGenerate = async () => {
 
-  if (!input.trim()) {
+    if (!input.trim()) {
 
-    showAlert("Error", "Please enter your idea first");
+      showAlert("Error", "Please enter your idea first");
 
-    return;
-  }
+      return;
+    }
 
-  try {
+    const todayDate = new Date().toISOString().split("T")[0];
 
-    setLoading(true);
+    // CHECK QUOTA BEFORE GENERATING
+    if (!isPremiumUser) {
+      const currentUsageDate = user?.dailyUsage?.date;
+      const currentUsageCount = currentUsageDate === todayDate ? (user?.dailyUsage?.count || 0) : 0;
 
-    let aiPrompt = "";
+      if (currentUsageCount >= 15) {
+        showAlert(
+          "Daily Limit Reached",
+          "You have reached your daily limit of 15 prompts for the Free Plan. Upgrade to Pro for 1,000 monthly credits!"
+        );
+        return;
+      }
+    } else {
+      const currentCredits = user?.credits ?? 1000;
+      if (currentCredits <= 0) {
+        showAlert(
+          "Credits Finished",
+          "You have used all your 1,000 monthly credits. Please buy a credit booster to continue!"
+        );
+        return;
+      }
+    }
 
-if (promptType === "Image") {
+    try {
 
-  aiPrompt = `
+      setLoading(true);
+
+      let aiPrompt = "";
+
+      if (promptType === "Image") {
+
+        aiPrompt = `
 You are a professional AI image prompt engineer.
 
 Generate a highly detailed AI image prompt.
@@ -116,8 +161,8 @@ STRICT REQUIREMENTS:
 - Style: ${selectedStyle}
 - Quality Level:
 ${selectedQuality === "High"
-  ? "Ultra detailed 8K cinematic quality"
-  : "Standard clean quality"}
+            ? "Ultra detailed 8K cinematic quality"
+            : "Standard clean quality"}
 - Aspect Ratio: ${aspectRatio}
 
 YOU MUST STRICTLY FOLLOW:
@@ -164,11 +209,11 @@ ${input}
 
 Return ONLY the final optimized image prompt.
 `;
-}
+      }
 
-else if (promptType === "Text") {
+      else if (promptType === "Text") {
 
-  aiPrompt = `
+        aiPrompt = `
 You are a professional content writer.
 
 Generate a ${contentLength} ${tone} text prompt.
@@ -214,11 +259,11 @@ ${input}
 
 Return ONLY one final optimized text prompt that strictly follows all selected settings.
 `;
-}
+      }
 
-else if (promptType === "Video") {
+      else if (promptType === "Video") {
 
-  aiPrompt = `
+        aiPrompt = `
 You are a cinematic AI video prompt engineer.
 
 Generate a professional cinematic video prompt.
@@ -226,12 +271,12 @@ Generate a professional cinematic video prompt.
 STRICT REQUIREMENTS:
 - Camera Style:
 ${camera === "Zoom"
-  ? "cinematic zoom shot"
-  : camera === "Pan"
-  ? "smooth cinematic pan shot"
-  : camera === "Drone"
-  ? "aerial drone cinematic shot"
-  : "static cinematic shot"}
+            ? "cinematic zoom shot"
+            : camera === "Pan"
+              ? "smooth cinematic pan shot"
+              : camera === "Drone"
+                ? "aerial drone cinematic shot"
+                : "static cinematic shot"}
 - Face Consistency: ${faceLock ? "Enabled" : "Disabled"}
 
 YOU MUST STRICTLY FOLLOW:
@@ -279,63 +324,81 @@ ${input}
 
 Return ONLY one final optimized cinematic video prompt that strictly follows all selected settings.
 `;
-}
-
-    const result =
-      await model.generateContent(aiPrompt);
-
-    const response =
-      await result.response;
-
-    const text =
-      response.text();
-
-    setGeneratedPrompt(text);
-
-    // FREE USER AD LOGIC
-    if (!isPremiumUser) {
-      const newCount = generateCount + 1;
-      setGenerateCount(newCount);
-
-      if (newCount % 4 === 0) {
-        interstitial.load();
-
-        interstitial.addAdEventListener(AdEventType.LOADED, () => {
-          interstitial.show();
-        });
       }
+
+      const result =
+        await model.generateContent(aiPrompt);
+
+      const response =
+        await result.response;
+
+      const text =
+        response.text();
+
+      setGeneratedPrompt(text);
+
+      // NON-BLOCKING FIRESTORE QUOTA UPDATE
+      try {
+        if (user?.uid) {
+          const userRef = doc(db, "users", user.uid);
+          if (!isPremiumUser) {
+            const currentUsageCount = user?.dailyUsage?.date === todayDate ? (user?.dailyUsage?.count || 0) : 0;
+            await updateDoc(userRef, {
+              dailyUsage: {
+                date: todayDate,
+                count: currentUsageCount + 1,
+              },
+            });
+          } else {
+            const currentCredits = user?.credits ?? 1000;
+            await updateDoc(userRef, {
+              credits: Math.max(0, currentCredits - 1),
+            });
+          }
+        }
+      } catch (dbErr) {
+        console.log("Firestore quota update warning:", dbErr);
+      }
+
+      // FREE USER AD LOGIC (NON-BLOCKING)
+      if (!isPremiumUser) {
+        try {
+          if (isLoaded) {
+            show();
+          } else {
+            load();
+          }
+        } catch (adErr) {
+          console.log("Ad display warning:", adErr);
+        }
+      }
+
+      const newHistoryItem = {
+        id: Date.now().toString(),
+        time: new Date().toLocaleString([], {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        }),
+        category: promptType,
+        prompt: text,
+        input: input
+      };
+
+      savePromptToHistory(newHistoryItem, user?.uid);
+
+    } catch (error) {
+
+      console.log("Prompt generation error:", error);
+
+      showAlert("Error", error?.message || "Failed to generate prompt. Please try again.");
+
+    } finally {
+
+      setLoading(false);
     }
-
-
-
-
-
-    const newHistoryItem = {
-      id: Date.now().toString(),
-      time: new Date().toLocaleString([], {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      }),
-      category: promptType,
-      prompt: text,
-      input: input
-    };
-
-    savePromptToHistory(newHistoryItem);
-
-  } catch (error) {
-
-    console.log(error);
-
-    showAlert("Error", "Failed to generate prompt");
-
-  } finally {
-
-    setLoading(false);
-  }
-};
+  };
 
 
   const copyPrompt = async () => {
@@ -364,18 +427,18 @@ Return ONLY one final optimized cinematic video prompt that strictly follows all
     >
 
       <Ionicons
-  name={
-    isPremiumUser
-      ? "sparkles"
-      : "lock-closed"
-  }
-  size={22}
-  color={
-    isPremiumUser
-      ? theme.primary
-      : "#f59e0b"
-  }
-/>
+        name={
+          isPremiumUser
+            ? "sparkles"
+            : "lock-closed"
+        }
+        size={22}
+        color={
+          isPremiumUser
+            ? theme.primary
+            : "#f59e0b"
+        }
+      />
 
       <Text
         style={{
@@ -905,29 +968,29 @@ Return ONLY one final optimized cinematic video prompt that strictly follows all
               >
 
                 <Ionicons
-  name={
-    isPremiumUser
-      ? "sparkles"
-      : "lock-closed"
-  }
-  size={22}
-  color={
-    isPremiumUser
-      ? theme.primary
-      : "#f59e0b"
-  }
-/>
+                  name={
+                    isPremiumUser
+                      ? "sparkles"
+                      : "lock-closed"
+                  }
+                  size={22}
+                  color={
+                    isPremiumUser
+                      ? theme.primary
+                      : "#f59e0b"
+                  }
+                />
 
-         <Text
-  style={{
-    marginLeft: 12,
-    color: theme.text,
-    fontSize: 16,
-    fontWeight: '500',
-  }}
->
-  Face Consistency
-</Text>
+                <Text
+                  style={{
+                    marginLeft: 12,
+                    color: theme.text,
+                    fontSize: 16,
+                    fontWeight: '500',
+                  }}
+                >
+                  Face Consistency
+                </Text>
 
 
               </View>
@@ -1015,119 +1078,119 @@ Return ONLY one final optimized cinematic video prompt that strictly follows all
 
         {/* GENERATED PROMPT BOX */}
         {
-  loading ? (
+          loading ? (
 
-    <View
-      style={{
-        backgroundColor: theme.card,
-        borderWidth: 1,
-        borderColor: theme.border,
-        borderRadius: 24,
-        padding: 20,
-        marginTop: 24,
-      }}
-    >
+            <View
+              style={{
+                backgroundColor: theme.card,
+                borderWidth: 1,
+                borderColor: theme.border,
+                borderRadius: 24,
+                padding: 20,
+                marginTop: 24,
+              }}
+            >
 
-      <Text
-        style={{
-          color: theme.primary,
-          fontWeight: 'bold',
-          marginBottom: 20,
-          fontSize: 16,
-        }}
-      >
-        Generating Prompt...
-      </Text>
+              <Text
+                style={{
+                  color: theme.primary,
+                  fontWeight: 'bold',
+                  marginBottom: 20,
+                  fontSize: 16,
+                }}
+              >
+                Generating Prompt...
+              </Text>
 
-      {[1, 2, 3, 4, 5].map((item) => (
+              {[1, 2, 3, 4, 5].map((item) => (
 
-        <View
-          key={item}
-          style={{
-            height: 18,
-            backgroundColor: "#d1d5db",
-            borderRadius: 999,
-            marginBottom: 14,
-            width:
-              item === 2
-                ? "85%"
-                : item === 4
-                ? "75%"
-                : "100%",
-            opacity: 0.7,
-          }}
-        />
+                <View
+                  key={item}
+                  style={{
+                    height: 18,
+                    backgroundColor: "#d1d5db",
+                    borderRadius: 999,
+                    marginBottom: 14,
+                    width:
+                      item === 2
+                        ? "85%"
+                        : item === 4
+                          ? "75%"
+                          : "100%",
+                    opacity: 0.7,
+                  }}
+                />
 
-      ))}
+              ))}
 
-      <ActivityIndicator
-        size="small"
-        color={theme.primary}
-        style={{ marginTop: 10 }}
-      />
+              <ActivityIndicator
+                size="small"
+                color={theme.primary}
+                style={{ marginTop: 10 }}
+              />
 
-    </View>
+            </View>
 
-  ) : generatedPrompt ? (
+          ) : generatedPrompt ? (
 
-    <View
-      style={{
-        backgroundColor: theme.card,
-        borderWidth: 1,
-        borderColor: theme.border,
-        borderRadius: 24,
-        padding: 20,
-        marginTop: 24,
-      }}
-    >
+            <View
+              style={{
+                backgroundColor: theme.card,
+                borderWidth: 1,
+                borderColor: theme.border,
+                borderRadius: 24,
+                padding: 20,
+                marginTop: 24,
+              }}
+            >
 
-      <Text
-        style={{
-          color: theme.primary,
-          fontWeight: 'bold',
-          marginBottom: 12,
-          fontSize: 16,
-        }}
-      >
-        Generated Prompt
-      </Text>
+              <Text
+                style={{
+                  color: theme.primary,
+                  fontWeight: 'bold',
+                  marginBottom: 12,
+                  fontSize: 16,
+                }}
+              >
+                Generated Prompt
+              </Text>
 
-      <Text
-        style={{
-          color: theme.text,
-          lineHeight: 24,
-          fontSize: 15,
-        }}
-      >
-        {generatedPrompt}
-      </Text>
+              <Text
+                style={{
+                  color: theme.text,
+                  lineHeight: 24,
+                  fontSize: 15,
+                }}
+              >
+                {generatedPrompt}
+              </Text>
 
-      <TouchableOpacity
-        onPress={copyPrompt}
-        style={{
-          backgroundColor: theme.primary,
-          paddingVertical: 12,
-          borderRadius: 14,
-          marginTop: 20,
-          alignItems: 'center',
-        }}
-      >
+              <TouchableOpacity
+                onPress={copyPrompt}
+                style={{
+                  backgroundColor: theme.primary,
+                  paddingVertical: 12,
+                  borderRadius: 14,
+                  marginTop: 20,
+                  alignItems: 'center',
+                }}
+              >
 
-        <Text
-          style={{
-            color: 'white',
-            fontWeight: 'bold',
-          }}
-        >
-          Copy Prompt
-        </Text>
+                <Text
+                  style={{
+                    color: 'white',
+                    fontWeight: 'bold',
+                  }}
+                >
+                  Copy Prompt
+                </Text>
 
-      </TouchableOpacity>
+              </TouchableOpacity>
 
-    </View>
+            </View>
 
-  ) : null
-}
+          ) : null
+        }
 
 
 
@@ -1137,20 +1200,22 @@ Return ONLY one final optimized cinematic video prompt that strictly follows all
 
       {!isPremiumUser && (
         <BannerAd
-          unitId="ca-app-pub-2777387455378814/8284390134"
+          unitId={bannerAdUnitId}
           size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
           requestOptions={{
             requestNonPersonalizedAdsOnly: true,
           }}
+
+
         />
       )}
 
-<CustomAlert
-  visible={alertVisible}
-  title={alertTitle}
-  message={alertMessage}
-  onClose={() => setAlertVisible(false)}
-/>
+      <CustomAlert
+        visible={alertVisible}
+        title={alertTitle}
+        message={alertMessage}
+        onClose={() => setAlertVisible(false)}
+      />
 
 
     </View>

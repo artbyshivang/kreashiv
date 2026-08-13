@@ -1,19 +1,28 @@
-import React, { useState, useContext, useEffect } from 'react';
 import {
-  View,
-  Text,
-  ScrollView,
-  FlatList,
-  TouchableOpacity,
-  TextInput,
-  Modal
-} from 'react-native';
-import Header from '../components/Header';
-import { Ionicons } from '@expo/vector-icons';
-import { ThemeContext } from "../theme/ThemeContext";
-import { useNavigation } from "@react-navigation/native";
+  BannerAd,
+  BannerAdSize,
+  TestIds,
+} from "react-native-google-mobile-ads";
 
-import { saveFolders, getFolders } from "../storage/folderStorage";
+
+import { useContext, useEffect, useState } from 'react';
+import {
+  FlatList,
+  Modal,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native';
+import { UserContext } from "../context/UserContext";
+
+
+import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from "@react-navigation/native";
+import Header from '../components/Header';
+import { ThemeContext } from "../theme/ThemeContext";
+
+import { getFolders, saveFolders } from "../storage/folderStorage";
 
 import CustomAlert from "../components/CustomAlert";
 
@@ -75,6 +84,10 @@ const FolderCard = ({ item, onDelete, onRename, theme }) => {
 export default function LibraryScreen() {
 
   const { theme } = useContext(ThemeContext);
+  const { user } = useContext(UserContext);
+
+  const isPremiumUser = user?.premium || false;
+
 
   const [folders, setFolders] = useState([]);
   const [newFolder, setNewFolder] = useState("");
@@ -90,16 +103,22 @@ export default function LibraryScreen() {
   const [confirmMode, setConfirmMode] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
 
+  const bannerAdUnitId = __DEV__
+    ? TestIds.BANNER
+    : "ca-app-pub-2777387455378814/8284390134";
+
+
+
   useEffect(() => {
 
     loadFolders();
 
-  }, []);
+  }, [user?.uid]);
 
   const loadFolders = async () => {
 
     const savedFolders =
-      await getFolders();
+      await getFolders(user?.uid);
 
     setFolders(savedFolders);
 
@@ -130,7 +149,7 @@ export default function LibraryScreen() {
 
     setFolders(updatedFolders);
 
-    saveFolders(updatedFolders);
+    saveFolders(updatedFolders, user?.uid);
 
     setNewFolder("");
   };
@@ -142,41 +161,41 @@ export default function LibraryScreen() {
   };
 
   const saveRename = () => {
-  if (!renameText.trim()) {
-  showAlert("Missing Name", "Please enter folder name");
-  return;
-  }
-  const updated = folders.map(f =>
+    if (!renameText.trim()) {
+      showAlert("Missing Name", "Please enter folder name");
+      return;
+    }
+    const updated = folders.map(f =>
       f.id === selectedFolder.id ? { ...f, title: renameText } : f
     );
     setFolders(updated);
-    saveFolders(updated);
+    saveFolders(updated, user?.uid);
     setRenameModal(false);
   };
 
   const openDelete = (item) => {
-  setSelectedFolder(item);
+    setSelectedFolder(item);
 
-  setAlertTitle("Delete");
-  setAlertMessage("Delete this folder?");
-  setConfirmMode(true);
+    setAlertTitle("Delete");
+    setAlertMessage("Delete this folder?");
+    setConfirmMode(true);
 
-  setConfirmAction(() => () => {
-    const updated = folders.filter(
-      f => f.id !== item.id
-    );
+    setConfirmAction(() => () => {
+      const updated = folders.filter(
+        f => f.id !== item.id
+      );
 
-    setFolders(updated);
-    saveFolders(updated);
+      setFolders(updated);
+      saveFolders(updated, user?.uid);
 
-    setAlertVisible(false);
-    setConfirmMode(false);
-  });
+      setAlertVisible(false);
+      setConfirmMode(false);
+    });
 
-  setAlertVisible(true);
-};
+    setAlertVisible(true);
+  };
 
-  
+
 
   const showAlert = (title, message) => {
     setAlertTitle(title);
@@ -347,21 +366,32 @@ export default function LibraryScreen() {
         </View>
       </Modal>
 
-    <CustomAlert
-      visible={alertVisible}
-      title={alertTitle}
-      message={alertMessage}
-      onClose={() => {
-        setAlertVisible(false);
-        setConfirmMode(false);
-      }}
 
-      showCancel={confirmMode}
-      confirmText="Delete"
-      cancelText="Cancel"
-      onConfirm={confirmAction}
-      danger={true}
-    />
+      {!isPremiumUser && (
+        <BannerAd
+          unitId={bannerAdUnitId}
+          size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+          requestOptions={{
+            requestNonPersonalizedAdsOnly: true,
+          }}
+        />
+      )}
+
+      <CustomAlert
+        visible={alertVisible}
+        title={alertTitle}
+        message={alertMessage}
+        onClose={() => {
+          setAlertVisible(false);
+          setConfirmMode(false);
+        }}
+
+        showCancel={confirmMode}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={confirmAction}
+        danger={true}
+      />
 
     </View>
   );

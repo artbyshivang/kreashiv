@@ -1,22 +1,28 @@
-import React, { useState, useContext, useCallback } from 'react';
+
+import { useCallback, useContext, useState } from 'react';
 import {
-  View,
-  Text,
-  ScrollView,
   FlatList,
+  Text,
   TouchableOpacity,
+  View
 } from 'react-native';
+import { UserContext } from "../context/UserContext";
 
-import AsyncStorage
-  from "@react-native-async-storage/async-storage";
+import {
+  BannerAd,
+  BannerAdSize,
+  TestIds
+} from "react-native-google-mobile-ads";
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import * as Clipboard from 'expo-clipboard';
 import CustomAlert from "../components/CustomAlert";
 import Header from '../components/Header';
-import { Ionicons } from '@expo/vector-icons';
-import * as Clipboard from 'expo-clipboard';
-import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { deletePromptFromHistory, getHistory } from "../storage/historyStorage";
 import { ThemeContext } from "../theme/ThemeContext";
-import { getHistory, deletePromptFromHistory } from "../storage/historyStorage";
 
 import {
   savePromptToFolder
@@ -135,6 +141,10 @@ export default function HistoryScreen() {
   const navigation = useNavigation(); // ✅ FIX
   const { theme } = useContext(ThemeContext);
 
+  const { user } = useContext(UserContext);
+
+  const isPremiumUser = user?.premium || false;
+
   const [historyData, setHistoryData] = useState([]);
 
   const [alertVisible, setAlertVisible] = useState(false);
@@ -147,12 +157,16 @@ export default function HistoryScreen() {
   const [confirmAction, setConfirmAction] = useState(null);
 
   const [folders, setFolders] = useState([]);
-  
+
+  const bannerAdUnitId = __DEV__
+    ? TestIds.BANNER
+    : "ca-app-pub-2777387455378814/8284390134";
+
   const showAlert = (title, message) => {
-  setAlertTitle(title);
-  setAlertMessage(message);
-  setAlertVisible(true);
-};
+    setAlertTitle(title);
+    setAlertMessage(message);
+    setAlertVisible(true);
+  };
 
   const [folderModal, setFolderModal] =
     useState(false);
@@ -165,7 +179,8 @@ export default function HistoryScreen() {
     const result =
       await savePromptToFolder(
         folder.id,
-        selectedPrompt
+        selectedPrompt,
+        user?.uid
       );
 
     setFolderModal(false);
@@ -193,18 +208,18 @@ export default function HistoryScreen() {
       const loadHistory = async () => {
 
         const foldersData =
-          await getFolders();
+          await getFolders(user?.uid);
 
         setFolders(
           foldersData
         );
 
 
-        const data = await getHistory();
+        const data = await getHistory(user?.uid);
         setHistoryData(data);
       };
       loadHistory();
-    }, [])
+    }, [user?.uid])
   );
 
 
@@ -230,47 +245,46 @@ export default function HistoryScreen() {
 
   /* DELETE */
   const handleDelete = (id) => {
-  setAlertTitle("Delete");
-  setAlertMessage("Delete this prompt?");
-  setConfirmMode(true);
+    setAlertTitle("Delete");
+    setAlertMessage("Delete this prompt?");
+    setConfirmMode(true);
 
-  setConfirmAction(() => async () => {
-    await deletePromptFromHistory(id);
+    setConfirmAction(() => async () => {
+      await deletePromptFromHistory(id, user?.uid);
 
-    setHistoryData(prev =>
-      prev.filter(item => item.id !== id)
-    );
-
-    try {
-      const data = await AsyncStorage.getItem(
-        "FOLDER_PROMPTS"
+      setHistoryData(prev =>
+        prev.filter(item => item.id !== id)
       );
 
-      const parsed =
-        data ? JSON.parse(data) : {};
+      try {
+        const folderKey = `FOLDER_PROMPTS_${user?.uid || "guest"}`;
+        const data = await AsyncStorage.getItem(folderKey);
 
-      Object.keys(parsed).forEach(folderId => {
-        parsed[folderId] =
-          parsed[folderId].filter(
-            item => item.id !== id
-          );
-      });
+        const parsed =
+          data ? JSON.parse(data) : {};
 
-      await AsyncStorage.setItem(
-        "FOLDER_PROMPTS",
-        JSON.stringify(parsed)
-      );
+        Object.keys(parsed).forEach(folderId => {
+          parsed[folderId] =
+            parsed[folderId].filter(
+              item => item.id !== id
+            );
+        });
 
-    } catch (e) {
-      console.log(e);
-    }
+        await AsyncStorage.setItem(
+          folderKey,
+          JSON.stringify(parsed)
+        );
 
-    setAlertVisible(false);
-    setConfirmMode(false);
-  });
+      } catch (e) {
+        console.log(e);
+      }
 
-  setAlertVisible(true);
-};
+      setAlertVisible(false);
+      setConfirmMode(false);
+    });
+
+    setAlertVisible(true);
+  };
 
   /* REUSE */
   const handleReuse = (item) => {
@@ -451,22 +465,30 @@ export default function HistoryScreen() {
         </View>
 
       </Modal>
-
+      {!isPremiumUser && (
+        <BannerAd
+          unitId={bannerAdUnitId}
+          size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+          requestOptions={{
+            requestNonPersonalizedAdsOnly: true,
+          }}
+        />
+      )}
       <CustomAlert
-      visible={alertVisible}
-      title={alertTitle}
-      message={alertMessage}
-      onClose={() => {
-        setAlertVisible(false);
-        setConfirmMode(false);
-      }}
+        visible={alertVisible}
+        title={alertTitle}
+        message={alertMessage}
+        onClose={() => {
+          setAlertVisible(false);
+          setConfirmMode(false);
+        }}
 
-      showCancel={confirmMode}
-      confirmText="Delete"
-      cancelText="Cancel"
-      onConfirm={confirmAction}
-      danger={true}
-    />
+        showCancel={confirmMode}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={confirmAction}
+        danger={true}
+      />
 
 
 
