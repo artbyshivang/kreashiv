@@ -39,88 +39,96 @@ export function UserProvider({ children }) {
     if (!auth) {
       console.warn("Firebase Auth is not initialized. Skipping auth listener.");
       setLoading(false);
+      SplashScreen.hideAsync().catch(() => {});
       return;
     }
 
     const timer = setTimeout(() => {
       setLoading(false);
-    }, 3000);
+      SplashScreen.hideAsync().catch(() => {});
+    }, 1000);
 
     let unsubSnapshot = null;
 
     const unsubscribe = onAuthStateChanged(
       auth,
       async (currentUser) => {
-        if (unsubSnapshot) {
-          unsubSnapshot();
-          unsubSnapshot = null;
-        }
-
-        if (currentUser) {
-          const extractAuthData = (u) => ({
-            uid: u.uid,
-            email: u.email,
-            displayName: u.displayName,
-            phoneNumber: u.phoneNumber,
-            emailVerified: u.emailVerified,
-            photoURL: u.photoURL,
-          });
-
-          const baseAuthData = extractAuthData(currentUser);
-
-          // Set user immediately so app screen opens instantly
-          setUser(baseAuthData);
-          setLoading(false);
-
-          // Non-blocking reload attempt in background
-          reload(currentUser).catch((e) =>
-            console.log("Background user reload error:", e)
-          );
-
-          if (!currentUser.emailVerified) {
-            return;
+        try {
+          if (unsubSnapshot) {
+            unsubSnapshot();
+            unsubSnapshot = null;
           }
 
-          try {
-            if (db) {
-              const userRef = doc(db, "users", currentUser.uid);
+          if (currentUser) {
+            const extractAuthData = (u) => ({
+              uid: u.uid,
+              email: u.email,
+              displayName: u.displayName,
+              phoneNumber: u.phoneNumber,
+              emailVerified: u.emailVerified,
+              photoURL: u.photoURL,
+            });
 
-              // Real-time listener for Firestore user document (updates in background)
-              unsubSnapshot = onSnapshot(
-                userRef,
-                (userSnap) => {
-                  if (userSnap.exists()) {
-                    setUser((prev) => ({
-                      ...prev,
-                      ...userSnap.data(),
-                    }));
-                  }
-                },
-                (error) => {
-                  console.log("Firestore snapshot error:", error);
-                }
-              );
+            const baseAuthData = extractAuthData(currentUser);
 
-              // Save push token if available
-              registerForPushNotificationsAsync().then((token) => {
-                if (token) {
-                  updateDoc(userRef, { pushToken: token }).catch((err) =>
-                    console.log("Push token update error:", err)
-                  );
-                }
-              }).catch(() => {});
+            // Set user immediately so app screen opens instantly
+            setUser(baseAuthData);
+
+            // Non-blocking reload attempt in background
+            reload(currentUser).catch((e) =>
+              console.log("Background user reload error:", e)
+            );
+
+            if (!currentUser.emailVerified) {
+              return;
             }
-          } catch (error) {
-            console.log("User doc setup error:", error);
+
+            try {
+              if (db) {
+                const userRef = doc(db, "users", currentUser.uid);
+
+                // Real-time listener for Firestore user document (updates in background)
+                unsubSnapshot = onSnapshot(
+                  userRef,
+                  (userSnap) => {
+                    if (userSnap.exists()) {
+                      setUser((prev) => ({
+                        ...prev,
+                        ...userSnap.data(),
+                      }));
+                    }
+                  },
+                  (error) => {
+                    console.log("Firestore snapshot error:", error);
+                  }
+                );
+
+                // Save push token if available
+                registerForPushNotificationsAsync().then((token) => {
+                  if (token) {
+                    updateDoc(userRef, { pushToken: token }).catch((err) =>
+                      console.log("Push token update error:", err)
+                    );
+                  }
+                }).catch(() => {});
+              }
+            } catch (error) {
+              console.log("User doc setup error:", error);
+            }
+          } else {
+            setUser(null);
           }
-        } else {
-          setUser(null);
+        } catch (authErr) {
+          console.log("Auth callback error:", authErr);
+        } finally {
           setLoading(false);
+          SplashScreen.hideAsync().catch(() => {});
         }
       }
     );
 
     return () => {
+      clearTimeout(timer);
       unsubscribe();
       if (unsubSnapshot) unsubSnapshot();
     };

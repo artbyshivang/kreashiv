@@ -1,59 +1,52 @@
-import React, {
-  useContext
-} from "react";
 import {
   createNativeStackNavigator
 } from "@react-navigation/native-stack";
+import {
+  useContext
+} from "react";
 
-import TabNavigator from "./TabNavigator";
 import { ThemeContext } from "../theme/ThemeContext";
+import TabNavigator from "./TabNavigator";
 
-import ProfileScreen
-  from "../screens/ProfileScreen";
+import ProfileScreen from "../screens/ProfileScreen";
 
-import VerifyEmailScreen
-  from "../screens/VerifyEmailScreen";
+import VerifyEmailScreen from "../screens/VerifyEmailScreen";
 
-import SettingsScreen
-  from "../screens/SettingsScreen";
+import SettingsScreen from "../screens/SettingsScreen";
 
-import LoginScreen
-  from "../screens/LoginScreen";
+import LoginScreen from "../screens/LoginScreen";
 
-import SignupScreen
-  from "../screens/SignupScreen";
+import SignupScreen from "../screens/SignupScreen";
 
-import ForgotPasswordScreen
-  from "../screens/ForgotPasswordScreen";
+import ForgotPasswordScreen from "../screens/ForgotPasswordScreen";
 
-import FolderScreen
-  from "../screens/FolderScreen";
+import FolderScreen from "../screens/FolderScreen";
 
 
-import PremiumScreen
-  from "../screens/PremiumScreen";
+import PremiumScreen from "../screens/PremiumScreen";
 
 
 
-import ManagePlanScreen
-  from "../screens/ManagePlanScreen";
+import ManagePlanScreen from "../screens/ManagePlanScreen";
 
 import {
   UserContext
 } from "../context/UserContext";
 
 
+import HelpCenterScreen from "../screens/HelpCenterScreen";
 import PrivacyPolicyScreen from "../screens/PrivacyPolicyScreen";
 import TermsScreen from "../screens/TermsScreen";
-import HelpCenterScreen from "../screens/HelpCenterScreen";
 
-import { View, ActivityIndicator } from "react-native";
+import { ActivityIndicator, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const Stack =
   createNativeStackNavigator();
 
 export default function RootNavigator() {
   const { theme } = useContext(ThemeContext);
+   const insets = useSafeAreaInsets();
 
   const {
     user,
@@ -73,21 +66,33 @@ export default function RootNavigator() {
   return (
 
     <Stack.Navigator
+  screenOptions={({ route }) => ({
+    headerShown: false,
 
+    /* SMOOTH NAVIGATION */
+    animation: "fade",
 
-      screenOptions={{
-        headerShown: false,
+    /* PERFORMANCE */
+    freezeOnBlur: true,
 
-        /* 🔥 SMOOTH NAVIGATION */
-        animation: "fade",
+    /* SAFE AREA */
+    contentStyle: {
+      backgroundColor: theme.background,
 
-        /* 🔥 PERFORMANCE */
-        freezeOnBlur: true,
-
-        /* 🔥 PREVENT FLASH */
-        contentStyle: { backgroundColor: theme.background },
-      }}
-    >
+      /*
+       * MainTabs already handles bottom safe-area
+       * inside TabNavigator.
+       *
+       * Other Stack screens need bottom inset
+       * so content does not overlap Android navigation buttons.
+       */
+      paddingBottom:
+        route.name === "MainTabs"
+          ? 0
+          : insets.bottom,
+    },
+  })}
+>
 
      {
   !user ? (

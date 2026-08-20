@@ -1,40 +1,41 @@
-import React, { useContext, useEffect, Component } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-import { NavigationContainer, DefaultTheme, DarkTheme } from "@react-navigation/native";
-import RootNavigator from "./src/navigation/RootNavigator";
-import ThemeProvider, { ThemeContext } from "./src/theme/ThemeContext";
+import { DarkTheme, DefaultTheme, NavigationContainer } from "@react-navigation/native";
+import * as Notifications from "expo-notifications";
+import * as SplashScreen from "expo-splash-screen";
+import { Component, useContext, useEffect } from "react";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import mobileAds from "react-native-google-mobile-ads";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { UserProvider } from "./src/context/UserContext";
 import "./src/firebase/test";
-import * as Notifications from "expo-notifications";
-import mobileAds from "react-native-google-mobile-ads";
-import * as SplashScreen from "expo-splash-screen";
-
-// Configure how notifications are handled when the app is in the foreground
-try {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-    }),
-  });
-} catch (e) {
-  console.log("Notification handler error:", e);
-}
-
-try {
-  if (typeof mobileAds === "function") {
-    mobileAds()
-      .initialize()
-      .then(() => {
-        console.log("AdMob Initialized");
-      })
-      .catch((err) => {
-        console.log("AdMob Initialization error:", err);
-      });
+import RootNavigator from "./src/navigation/RootNavigator";
+import ThemeProvider, { ThemeContext } from "./src/theme/ThemeContext";
+function initializeNativeSDKs() {
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      }),
+    });
+  } catch (e) {
+    console.log("Notification handler error:", e);
   }
-} catch (e) {
-  console.log("AdMob init error:", e);
+
+  try {
+    if (typeof mobileAds === "function") {
+      mobileAds()
+        .initialize()
+        .then(() => {
+          console.log("AdMob Initialized");
+        })
+        .catch((err) => {
+          console.log("AdMob Initialization error:", err);
+        });
+    }
+  } catch (e) {
+    console.log("AdMob init error:", e);
+  }
 }
 
 class ErrorBoundary extends Component {
@@ -105,18 +106,7 @@ function AppContent() {
   const isDark = theme.background === "#0f172a";
 
   useEffect(() => {
-    // Hide splash screen immediately and with fallbacks for standalone APKs
     SplashScreen.hideAsync().catch(() => {});
-
-    const t1 = setTimeout(() => SplashScreen.hideAsync().catch(() => {}), 200);
-    const t2 = setTimeout(() => SplashScreen.hideAsync().catch(() => {}), 800);
-    const t3 = setTimeout(() => SplashScreen.hideAsync().catch(() => {}), 1500);
-
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-    };
   }, []);
 
   const navigationTheme = {
@@ -142,18 +132,28 @@ function AppContent() {
 
 export default function App() {
   useEffect(() => {
+    initializeNativeSDKs();
+
+    // Guaranteed splash hide on app startup
     SplashScreen.hideAsync().catch(() => {});
-    const t = setTimeout(() => SplashScreen.hideAsync().catch(() => {}), 500);
-    return () => clearTimeout(t);
+    const t1 = setTimeout(() => SplashScreen.hideAsync().catch(() => {}), 300);
+    const t2 = setTimeout(() => SplashScreen.hideAsync().catch(() => {}), 1000);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
   }, []);
 
   return (
     <ErrorBoundary>
       <ThemeProvider>
-        <UserProvider>
-          <AppContent />
-        </UserProvider>
-      </ThemeProvider>
+  <UserProvider>
+    <SafeAreaProvider>
+      <AppContent />
+    </SafeAreaProvider>
+  </UserProvider>
+</ThemeProvider>
     </ErrorBoundary>
   );
 }

@@ -1,4 +1,4 @@
-import React, {
+import {
   useContext,
   useMemo
 } from 'react';
@@ -6,6 +6,7 @@ import React, {
 import {
   createBottomTabNavigator
 } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   Ionicons
@@ -16,17 +17,13 @@ import {
 } from '../theme/ThemeContext';
 
 /* SCREENS */
-import HomeScreen
-  from '../screens/HomeScreen';
+import HomeScreen from '../screens/HomeScreen';
 
-import HistoryScreen
-  from '../screens/HistoryScreen';
+import HistoryScreen from '../screens/HistoryScreen';
 
-import LibraryScreen
-  from '../screens/LibraryScreen';
+import LibraryScreen from '../screens/LibraryScreen';
 
-import PremiumScreen
-  from '../screens/PremiumScreen';
+import PremiumScreen from '../screens/PremiumScreen';
 
 const Tab =
   createBottomTabNavigator();
@@ -35,6 +32,9 @@ export default function TabNavigator() {
 
   const { theme } =
     useContext(ThemeContext);
+   
+    const insets = useSafeAreaInsets();
+
 
   /* 🔥 PERFORMANCE */
   const screenOptions = useMemo(() => ({
@@ -52,17 +52,17 @@ export default function TabNavigator() {
       theme.subText,
 
     /* 🔥 TAB DESIGN */
-    tabBarStyle: {
-      backgroundColor: theme.card,
-      borderTopWidth: 1,
-      borderTopColor: theme.border,
+    tabBarStyle: { 
+      backgroundColor: theme.card, 
+      borderTopWidth: 1, 
+      borderTopColor: theme.border, 
       elevation: 0,
-      height: 65,
-      paddingBottom: 10,
+
+      height: 65 + insets.bottom,
+      paddingBottom: 10 + insets.bottom,
       paddingTop: 10,
     },
-
-  }), [theme]);
+  }), [theme, insets.bottom]);
 
   return (
 

@@ -1,20 +1,20 @@
-const API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || "";
-
 const MODELS = [
+  "gemini-1.5-flash",
   "gemini-2.5-flash",
-  "gemini-3.1-flash-lite",
-  "gemini-3-flash-preview",
-  "gemma-4-31b-it",
-  "gemma-4-26b-a4b-it",
-  "gemini-2.0-flash",
+  "gemini-1.5-pro",
 ];
 
 export async function generateGeminiPrompt(promptText) {
+  const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY || "";
+  if (!apiKey) {
+    throw new Error("Gemini API key missing. Please check your configuration.");
+  }
+
   let lastError = null;
 
   for (const modelName of MODELS) {
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${API_KEY}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
 
       const response = await fetch(url, {
         method: "POST",
@@ -44,7 +44,7 @@ export async function generateGeminiPrompt(promptText) {
     }
   }
 
-  throw lastError || new Error("Failed to generate prompt. Please try again in a few moments.");
+  throw new Error(lastError?.message || "Failed to generate prompt. Please try again in a few moments.");
 }
 
 const modelWrapper = {

@@ -1,38 +1,37 @@
-import React, { useState, useContext, useEffect } from "react";
+import { useContext, useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  Switch,
-  Modal,
-  TextInput,
   Image,
+  Modal,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from "react-native";
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
-import { ThemeContext } from "../theme/ThemeContext";
+import { updateDoc } from "firebase/firestore";
 import CountryPicker from "react-native-country-picker-modal";
+import CustomAlert from "../components/CustomAlert";
 import { UserContext } from "../context/UserContext";
 import { clearHistory } from "../storage/historyStorage";
-import { updateDoc } from "firebase/firestore";
-import CustomAlert from "../components/CustomAlert";
+import { ThemeContext } from "../theme/ThemeContext";
 import { registerForPushNotificationsAsync } from "../utils/notifications";
 
 import {
   deleteUser,
-  reauthenticateWithCredential,
   EmailAuthProvider,
+  reauthenticateWithCredential,
   signOut,
 } from "firebase/auth";
 
 import auth from "../firebase/auth";
 
 import {
-  doc,
   deleteDoc,
+  doc,
   getDoc,
 } from "firebase/firestore";
 
@@ -186,15 +185,23 @@ const showConfirm = (
         await reauthenticateWithCredential(currentUser, credential);
       }
 
-      /* 2. DELETE AUTH ACCOUNT FIRST */
-      await deleteUser(currentUser);
+      /* 2. DELETE FIRESTORE USER DOCUMENT FIRST */
+try {
+  await deleteDoc(doc(db, "users", uid));
+  console.log("Firestore user document deleted successfully.");
+} catch (fsErr) {
+  console.log("Firestore deletion error:", fsErr);
+  setIsDeleting(false);
+  showAlert(
+    "Error",
+    "Unable to delete your account data. Please try again."
+  );
+  return;
+}
 
-      /* 3. DELETE FIRESTORE USER DOCUMENT */
-      try {
-        await deleteDoc(doc(db, "users", uid));
-      } catch (fsErr) {
-        console.log("Firestore deletion error:", fsErr);
-      }
+/* 3. DELETE AUTH ACCOUNT */
+await deleteUser(currentUser);
+console.log("Firebase Authentication account deleted successfully.");
 
       /* 4. CLEAR LOCAL STORAGE */
       try {

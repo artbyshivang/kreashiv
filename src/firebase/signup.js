@@ -7,12 +7,8 @@ import auth from "./auth";
 
 import {
     doc,
-    setDoc,
-    collection,
-    query,
-    where,
-    getDocs,
     serverTimestamp,
+    setDoc,
 } from "firebase/firestore";
 
 import { db } from "./config";
@@ -31,24 +27,7 @@ const signup = async (
     
     try {
 
-        // CHECK DUPLICATE PHONE NUMBER
-        const usersRef = collection(db, "users");
-
-        const q = query(
-            usersRef,
-            where("phone", "==", phone)
-        );
-
-        const querySnapshot = await getDocs(q);
-
-        if (!querySnapshot.empty) {
-
-            return {
-                success: false,
-                error: "Phone number already exists",
-            };
-        }
-
+       
 
 
         const userCredential =

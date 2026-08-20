@@ -7,12 +7,17 @@ import {
   View
 } from 'react-native';
 
+import auth from "../firebase/auth";
+
+
 import {
   BannerAd,
   BannerAdSize,
   TestIds,
   useInterstitialAd
 } from "react-native-google-mobile-ads";
+
+
 
 const interstitialAdUnitId = __DEV__
   ? TestIds.INTERSTITIAL
@@ -28,19 +33,20 @@ const bannerAdUnitId = __DEV__
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute } from "@react-navigation/native";
 import * as Clipboard from 'expo-clipboard';
+import { doc, updateDoc } from "firebase/firestore";
 import { ActivityIndicator } from "react-native";
 import model from "../api/gemini";
 import AnimatedToggle from "../components/AnimatedToggle";
 import CustomAlert from "../components/CustomAlert";
 import Header from '../components/Header';
 import { UserContext } from "../context/UserContext";
+import { db } from "../firebase/config";
 import { savePromptToHistory } from "../storage/historyStorage";
 import { ThemeContext } from "../theme/ThemeContext";
-import { doc, updateDoc } from "firebase/firestore";
-import { db } from "../firebase/config";
 
 export default function HomeScreen() {
   const [generateCount, setGenerateCount] = useState(0);
+  const [pendingAdShow, setPendingAdShow] = useState(false);
 
   const { isLoaded, isClosed, load, show } = useInterstitialAd(interstitialAdUnitId, {
     requestNonPersonalizedAdsOnly: true,
@@ -73,6 +79,17 @@ export default function HomeScreen() {
 
   const isPremiumUser =
     user?.premium || false;
+
+  useEffect(() => {
+  if (!isPremiumUser && pendingAdShow && isLoaded) {
+    show();
+    setPendingAdShow(false);
+  }
+  }, [pendingAdShow, isLoaded, isPremiumUser, show]);
+    
+
+
+
 
   /* INPUT */
   const [input, setInput] = useState("");
@@ -350,10 +367,30 @@ Return ONLY one final optimized cinematic video prompt that strictly follows all
               },
             });
           } else {
-            const currentCredits = user?.credits ?? 1000;
-            await updateDoc(userRef, {
-              credits: Math.max(0, currentCredits - 1),
-            });
+            const currentUser = auth.currentUser;
+
+if (!currentUser) {
+  throw new Error("User is not logged in.");
+}
+
+const idToken = await currentUser.getIdToken();
+
+const response = await fetch(
+  "https://kreashiv-api.onrender.com/api/use-credit",
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${idToken}`,
+    },
+  }
+);
+
+const creditData = await response.json();
+
+if (!response.ok || !creditData.success) {
+  throw new Error(creditData.error || "Failed to use credit.");
+}
           }
         }
       } catch (dbErr) {
@@ -361,17 +398,19 @@ Return ONLY one final optimized cinematic video prompt that strictly follows all
       }
 
       // FREE USER AD LOGIC (NON-BLOCKING)
-      if (!isPremiumUser) {
-        try {
-          if (isLoaded) {
-            show();
-          } else {
-            load();
-          }
-        } catch (adErr) {
-          console.log("Ad display warning:", adErr);
+      // // FREE USER AD LOGIC
+    if (!isPremiumUser) {
+      try {
+        if (isLoaded) {
+          show();
+        } else {
+          setPendingAdShow(true);
+          load();
         }
+      } catch (adErr) {
+        console.log("Ad display warning:", adErr);
       }
+    }
 
       const newHistoryItem = {
         id: Date.now().toString(),
@@ -1202,9 +1241,7 @@ Return ONLY one final optimized cinematic video prompt that strictly follows all
         <BannerAd
           unitId={bannerAdUnitId}
           size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
-          requestOptions={{
-            requestNonPersonalizedAdsOnly: true,
-          }}
+         
 
 
         />

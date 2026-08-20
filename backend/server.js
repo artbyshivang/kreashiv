@@ -1,11 +1,12 @@
-import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import express from "express";
 import { Resend } from "resend";
+import creditsRoute from "./routes/credits.js";
 
 import resetPasswordRoute from "./routes/resetPassword.js";
-import verifyEmailRoute from "./routes/verifyEmail.js";
 import sendNotificationRoute from "./routes/sendNotification.js";
+import verifyEmailRoute from "./routes/verifyEmail.js";
 
 dotenv.config();
 
@@ -18,7 +19,7 @@ app.use("/api", resetPasswordRoute);
 app.use("/api", verifyEmailRoute);
 app.use("/api", sendNotificationRoute);
 
-
+app.use("/api", creditsRoute);
 
 
 const resend = new Resend(process.env.RESEND_API_KEY);

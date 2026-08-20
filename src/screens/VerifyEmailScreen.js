@@ -1,5 +1,6 @@
 import { useContext, useState } from 'react';
 
+import { doc, getDoc } from 'firebase/firestore';
 import { LogOut, Mail, RefreshCcw, Send } from 'lucide-react-native';
 import {
     ActivityIndicator,
@@ -14,9 +15,8 @@ import {
 import CustomAlert from "../components/CustomAlert";
 import { UserContext } from '../context/UserContext';
 import auth from '../firebase/auth';
-import { ThemeContext } from '../theme/ThemeContext';
-import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
+import { ThemeContext } from '../theme/ThemeContext';
 
 
 const VerifyEmailScreen = () => {
@@ -120,36 +120,61 @@ const VerifyEmailScreen = () => {
     };
 
     const handleResend = async () => {
-        setSending(true);
-        try {
-            const res = await fetch('https://kreashiv-api.onrender.com/api/send-verification-email', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: user.email })
-            });
+    if (sending) return;
 
-            const data = await res.json();
-            if (data.success) {
+    setSending(true);
+
+    try {
+        const res = await fetch(
+            'https://kreashiv-api.onrender.com/api/send-verification-email',
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: user.email,
+                }),
+            }
+        );
+
+        const data = await res.json();
+
+        if (data.success) {
+            showAlert(
+                "Success",
+                "Verification email resent. Please check your inbox."
+            );
+        } else {
+            const errorMessage = String(data.error || "").toLowerCase();
+
+            if (
+                errorMessage.includes("too_many_attempts") ||
+                errorMessage.includes("too many attempts") ||
+                errorMessage.includes("rate limit")
+            ) {
                 showAlert(
-                    "Success",
-                    "Verification email resent. Please check your inbox."
+                    "Please Wait",
+                    "Too many resend attempts. Please wait a little and try again."
                 );
             } else {
                 showAlert(
                     "Error",
-                    "Failed to send verification email: " + (data.error || "Unknown error")
+                    "Failed to send verification email. Please try again later."
                 );
             }
-        } catch (error) {
-            console.log(error);
-            showAlert(
-                "Error",
-                "Something went wrong while resending email."
-            );
-        } finally {
-            setSending(false);
         }
-    };
+    } catch (error) {
+        console.log("Resend email error:", error);
+
+        showAlert(
+            "Error",
+            "Something went wrong while resending the email."
+        );
+    } finally {
+        setSending(false);
+    }
+};
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>

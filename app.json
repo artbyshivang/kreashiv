@@ -2,7 +2,7 @@
   "expo": {
     "name": "Kreashiv",
     "slug": "kreashiv",
-    "version": "3.0.0",
+    "version": "3.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "kreashiv",
@@ -13,6 +13,7 @@
     },
     "android": {
       "package": "com.kreashiv.app",
+      "versionCode": 4,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#001b17",
