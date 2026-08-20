@@ -7,7 +7,6 @@ import {
   View
 } from 'react-native';
 
-import auth from "../firebase/auth";
 
 
 import {
@@ -367,30 +366,16 @@ Return ONLY one final optimized cinematic video prompt that strictly follows all
               },
             });
           } else {
-            const currentUser = auth.currentUser;
+           
+const currentCredits = user?.credits ?? 1000;
 
-if (!currentUser) {
-  throw new Error("User is not logged in.");
-}
+await updateDoc(userRef, {
+  credits: Math.max(0, currentCredits - 1),
+});
 
-const idToken = await currentUser.getIdToken();
 
-const response = await fetch(
-  "https://kreashiv-api.onrender.com/api/use-credit",
-  {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${idToken}`,
-    },
-  }
-);
 
-const creditData = await response.json();
 
-if (!response.ok || !creditData.success) {
-  throw new Error(creditData.error || "Failed to use credit.");
-}
           }
         }
       } catch (dbErr) {
