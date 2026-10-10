@@ -12,8 +12,6 @@ import { useNavigation } from "@react-navigation/native";
 import { UserContext } from "../context/UserContext";
 import { ThemeContext } from "../theme/ThemeContext";
 
-import { doc, updateDoc } from "firebase/firestore";
-import { db } from "../firebase/config";
 
 export default function ManagePlanScreen() {
     const navigation = useNavigation();
@@ -417,18 +415,26 @@ export default function ManagePlanScreen() {
                     try {
                         setShowCancelAlert(false);
                         if (user?.uid) {
-                            const userRef = doc(db, "users", user.uid);
-                            await updateDoc(userRef, {
-                                premium: false,
+                            const apiUrl = process.env.EXPO_PUBLIC_API_URL || "";
+                            const response = await fetch(`${apiUrl}/api/cancel-premium`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ uid: user.uid }),
                             });
-                            setUser({
-                                ...user,
-                                premium: false,
-                            });
-                            showAlert(
-                                "Subscription Cancelled",
-                                "Your subscription has been cancelled successfully."
-                            );
+                            const data = await response.json();
+                            if (data.success) {
+                                setUser({
+                                    ...user,
+                                    premium: false,
+                                    planType: null,
+                                });
+                                showAlert(
+                                    "Subscription Cancelled",
+                                    "Your subscription has been cancelled successfully."
+                                );
+                            } else {
+                                showAlert("Error", "Failed to cancel. Please try again.");
+                            }
                         }
                     } catch (error) {
                         console.log("Cancel subscription error:", error);

@@ -24,6 +24,7 @@ import CustomAlert from "../components/CustomAlert";
 import CountryPicker from "react-native-country-picker-modal";
 
 import { ThemeContext } from '../theme/ThemeContext';
+import { isAllowedEmail } from '../utils/validation';
 
 import signup from "../firebase/signup";
 
@@ -62,32 +63,13 @@ const SignupScreen = ({ navigation }) => {
    
     const handleSignup = async () => {
 
-        const allowedDomains = [
-            "gmail.com",
-            "yahoo.com",
-            "icloud.com",
-            "outlook.com",
-            "hotmail.com",
-        ];
-
-        const emailDomain = email
-            .split("@")[1]
-            ?.toLowerCase();
-
-        if (!allowedDomains.includes(emailDomain)) {
-
-            showAlert(
-  "Invalid Email",
-  "Please use Gmail, Yahoo, iCloud, Outlook or Hotmail email."
-);
-
+        if (!name || !email || !password || !phone) {
+            showAlert("Missing Fields", "Please fill in all fields");
             return;
         }
 
-        if (!name || !phone || !email || !password) {
-
-            showAlert("Error", "Please fill all fields");
-
+        if (!isAllowedEmail(email)) {
+            showAlert("Invalid Email Provider", "Please use a supported email provider (e.g. Gmail, Outlook, Yahoo, etc.).");
             return;
         }
 

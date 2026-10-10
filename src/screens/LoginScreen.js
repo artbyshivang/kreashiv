@@ -18,6 +18,7 @@ import {
 } from 'lucide-react-native';
 
 import { ThemeContext } from '../theme/ThemeContext';
+import { isAllowedEmail } from '../utils/validation';
 import login from "../firebase/login";
 import CustomAlert from "../components/CustomAlert";
 
@@ -40,10 +41,15 @@ const [alertMessage, setAlertMessage] = useState("");
 
   const handleLogin = async () => {
 
-    if (!email || !password) {
-        showAlert("Error", "Please fill all fields");
-        return;
-    }
+        if (!email || !password) {
+            showAlert("Error", "Please fill all fields");
+            return;
+        }
+
+        if (!isAllowedEmail(email)) {
+            showAlert("Invalid Email Provider", "Please use a supported email provider (e.g. Gmail, Outlook, Yahoo, etc.).");
+            return;
+        }
 
     try {
         setLoading(true);

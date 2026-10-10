@@ -8,9 +8,8 @@ import {
   View,
 } from "react-native";
 import Header from "../components/Header";
-import billingService from "../services/billingService";
+import billingService, { PRODUCT_IDS } from "../services/billingService";
 import { ThemeContext } from "../theme/ThemeContext";
-
 
 import { useNavigation } from "@react-navigation/native";
 import CustomAlert from "../components/CustomAlert";
@@ -78,11 +77,45 @@ export default function PremiumScreen() {
       return;
     }
 
+    // Setup purchase listeners — these fire when Google Play confirms a purchase
+    billingService.setPurchaseListeners({
+      onSuccess: async (purchase) => {
+        setLoading(false);
+        if (user?.uid) {
+          const result = await billingService.savePremiumToFirestore(user.uid, purchase);
+          if (result?.success) {
+            // Update local user state immediately (Firestore listener will also sync)
+            setUser((prev) => ({
+              ...prev,
+              premium: true,
+              planType: result.planType,
+              credits: result.credits,
+            }));
+            showAlert(
+              "🎉 Welcome to Premium!",
+              "Your subscription is now active. Enjoy all premium features!"
+            );
+            navigation.goBack();
+          } else {
+            showAlert(
+              "Purchase Successful",
+              "Payment done! If premium doesn't activate, please contact support."
+            );
+          }
+        }
+      },
+      onError: (error) => {
+        setLoading(false);
+        showAlert(
+          "Purchase Failed",
+          "Something went wrong. Please try again or contact support."
+        );
+      },
+    });
+
     const products = await billingService.getSubscriptions();
-
     setSubscriptions(products);
-
-    console.log("Subscriptions:", products);
+    console.log("Subscriptions loaded:", products);
   };
 
 
@@ -117,15 +150,98 @@ export default function PremiumScreen() {
     if (selectedPlan === "free") {
       showAlert(
         "Free Plan",
-        "You are currently using the Free Plan."
+        "You are already using the Free Plan."
       );
       return;
     }
 
-    showAlert(
-      "Purchases Temporarily Unavailable",
-      "Google Play purchases are currently unavailable while merchant verification is in progress. Please try again later."
-    );
+    if (isPremiumUser) {
+      showAlert(
+        "Already Premium",
+        "You already have an active premium subscription!"
+      );
+      return;
+    }
+
+    setLoading(true);
+
+    // Make sure billing is connected before purchase
+    const connected = await billingService.connect();
+    if (!connected) {
+      setLoading(false);
+      showAlert(
+        "Connection Error",
+        "Could not connect to Google Play. Please check your internet and try again."
+      );
+      return;
+    }
+
+    // Map selected plan to product ID
+    const productId =
+      selectedPlan === "quarterly"
+        ? PRODUCT_IDS.QUARTERLY
+        : PRODUCT_IDS.MONTHLY;
+
+    // This opens the Google Play payment sheet
+    const result = await billingService.purchaseSubscription(productId);
+
+    if (result.cancelled) {
+      // User pressed back on Google Play sheet — no error shown
+      setLoading(false);
+      return;
+    }
+
+    if (!result.success) {
+      setLoading(false);
+      showAlert(
+        "Purchase Failed",
+        "Could not initiate purchase. Please try again."
+      );
+    }
+    // If success: the purchaseUpdatedListener (in initializeBilling) handles the rest
+  };
+
+  const handleRestore = async () => {
+    setLoading(true);
+    try {
+      const connected = await billingService.connect();
+      if (!connected) {
+        setLoading(false);
+        showAlert("Error", "Could not connect to Google Play.");
+        return;
+      }
+
+      const purchases = await billingService.restorePurchases();
+
+      if (purchases.length === 0) {
+        setLoading(false);
+        showAlert("No Purchases Found", "No active subscriptions found for your account.");
+        return;
+      }
+
+      // Find the most recent active subscription
+      const activeSub = purchases.find(
+        (p) => p.productId === PRODUCT_IDS.MONTHLY || p.productId === PRODUCT_IDS.QUARTERLY
+      );
+
+      if (activeSub && user?.uid) {
+        await billingService.finishPurchase(activeSub);
+        await billingService.savePremiumToFirestore(user.uid, activeSub);
+        setUser((prev) => ({
+          ...prev,
+          premium: true,
+          planType: activeSub.productId === PRODUCT_IDS.QUARTERLY ? "quarterly" : "monthly",
+        }));
+        showAlert("✅ Restored!", "Your premium subscription has been restored.");
+        navigation.goBack();
+      } else {
+        showAlert("Not Found", "No active premium subscription found to restore.");
+      }
+    } catch (e) {
+      showAlert("Error", "Failed to restore purchases. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -328,7 +444,7 @@ export default function PremiumScreen() {
             borderRadius: 50,
             alignItems: "center",
             marginTop: 35,
-            marginBottom: 20,
+            marginBottom: 12,
             opacity: loading ? 0.7 : 1,
           }}
         >
@@ -342,6 +458,30 @@ export default function PremiumScreen() {
             {loading ? "Processing..." : "Continue to Upgrade →"}
           </Text>
         </TouchableOpacity>
+
+        {/* RESTORE PURCHASES — Required by Google Play policy */}
+        {!isPremiumUser && (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={handleRestore}
+            disabled={loading}
+            style={{
+              alignItems: "center",
+              paddingVertical: 10,
+              marginBottom: 20,
+            }}
+          >
+            <Text
+              style={{
+                color: theme.subText,
+                fontSize: 13,
+                textDecorationLine: "underline",
+              }}
+            >
+              Restore Purchases
+            </Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
       <CustomAlert

@@ -12,6 +12,10 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN": "91FC53CF-9444-433D-BC01-4D59FB31143B",
+        "EXPO_PUBLIC_IS_PREVIEW": "true"
       }
     },
     "production": {

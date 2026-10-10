@@ -3,6 +3,7 @@ import {
   useEffect,
   useState,
 } from "react";
+import * as SplashScreen from "expo-splash-screen";
 
 import auth from "../firebase/auth";
 
@@ -10,20 +11,26 @@ import {
   onAuthStateChanged,
   reload,
   signOut,
-} from "firebase/auth";
+} from "@react-native-firebase/auth";
 
 import {
+  deleteDoc,
   doc,
   getDoc,
-  updateDoc,
+  getFirestore,
   onSnapshot,
-} from "firebase/firestore";
+  setDoc,
+  updateDoc,
+} from "@react-native-firebase/firestore";
 
-import { db } from "../firebase/config";
 import { registerForPushNotificationsAsync } from "../utils/notifications";
-import * as SplashScreen from "expo-splash-screen";
+
+const db = getFirestore();
+
 
 export const UserContext = createContext();
+
+
 
 export function UserProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -37,7 +44,10 @@ export function UserProvider({ children }) {
 
   useEffect(() => {
     if (!auth) {
-      console.warn("Firebase Auth is not initialized. Skipping auth listener.");
+      console.warn(
+        "Firebase Auth is not initialized. Skipping auth listener."
+      );
+
       setLoading(false);
       SplashScreen.hideAsync().catch(() => {});
       return;
@@ -54,6 +64,7 @@ export function UserProvider({ children }) {
       auth,
       async (currentUser) => {
         try {
+          // Remove previous Firestore listener
           if (unsubSnapshot) {
             unsubSnapshot();
             unsubSnapshot = null;
@@ -71,55 +82,126 @@ export function UserProvider({ children }) {
 
             const baseAuthData = extractAuthData(currentUser);
 
-            // Set user immediately so app screen opens instantly
+            // Show user immediately
             setUser(baseAuthData);
 
-            // Non-blocking reload attempt in background
-            reload(currentUser).catch((e) =>
-              console.log("Background user reload error:", e)
-            );
+            // Background reload
+            reload(currentUser).catch((e) => {
+              console.log("Background user reload error:", e);
+            });
 
             if (!currentUser.emailVerified) {
               return;
             }
 
             try {
-              if (db) {
-                const userRef = doc(db, "users", currentUser.uid);
+              const userRef = doc(
+                db,
+                "users",
+                currentUser.uid
+              );
 
-                // Real-time listener for Firestore user document (updates in background)
-                unsubSnapshot = onSnapshot(
-                  userRef,
-                  (userSnap) => {
-                    if (userSnap.exists()) {
-                      setUser((prev) => ({
-                        ...prev,
-                        ...userSnap.data(),
-                      }));
+              // Real-time Firestore listener
+              unsubSnapshot = onSnapshot(
+                userRef,
+                async (userSnap) => {
+                  const snapExists = typeof userSnap.exists === 'function' ? userSnap.exists() : Boolean(userSnap.exists);
+                  if (snapExists) {
+                    const data = userSnap.data();
+                    setUser((prev) => ({
+                      ...prev,
+                      ...data,
+                    }));
+
+                    // Auto-populate & Auto-sync emailIndex & phoneIndex
+                    try {
+                      // Sync Auth email to Firestore if it changed via verification link
+                      if (currentUser.email && data.email && currentUser.email !== data.email) {
+                        const newEmail = currentUser.email.toLowerCase().trim();
+                        const oldEmail = data.email.toLowerCase().trim();
+
+                        // 1. Update Firestore user doc
+                        await updateDoc(userRef, { email: newEmail });
+
+                        // 2. Remove old email from index
+                        await deleteDoc(doc(db, "emailIndex", oldEmail));
+
+                        // 3. Add new email to index
+                        await setDoc(doc(db, "emailIndex", newEmail), { uid: currentUser.uid });
+                        
+                        // Update local data variable so the rest of the app gets the fresh email
+                        data.email = newEmail;
+                      }
+
+                      if (data.email) {
+                        const emailKey = data.email.toLowerCase().trim();
+                        const emailRef = doc(db, "emailIndex", emailKey);
+                        const emailSnap = await getDoc(emailRef);
+                        const emailExists = typeof emailSnap.exists === "function"
+                          ? emailSnap.exists()
+                          : Boolean(emailSnap.exists);
+                        if (!emailExists) {
+                          await setDoc(emailRef, { uid: currentUser.uid });
+                        }
+                      }
+                      if (data.phone) {
+                        const phoneKey = data.phone.replace(/\s/g, "");
+                        const phoneRef = doc(db, "phoneIndex", phoneKey);
+                        const phoneSnap = await getDoc(phoneRef);
+                        const phoneExists = typeof phoneSnap.exists === "function"
+                          ? phoneSnap.exists()
+                          : Boolean(phoneSnap.exists);
+                        if (!phoneExists) {
+                          await setDoc(phoneRef, { uid: currentUser.uid });
+                        }
+                      }
+                    } catch (indexErr) {
+                      console.log("Index auto-populate/sync error:", indexErr);
                     }
-                  },
-                  (error) => {
-                    console.log("Firestore snapshot error:", error);
                   }
-                );
+                },
+                (error) => {
+                  console.log(
+                    "Firestore snapshot error:",
+                    error
+                  );
+                }
+              );
 
-                // Save push token if available
-                registerForPushNotificationsAsync().then((token) => {
+              // Save push notification token
+              registerForPushNotificationsAsync()
+                .then((token) => {
                   if (token) {
-                    updateDoc(userRef, { pushToken: token }).catch((err) =>
-                      console.log("Push token update error:", err)
-                    );
+                    updateDoc(userRef, {
+                      pushToken: token,
+                    }).catch((err) => {
+                      console.log(
+                        "Push token update error:",
+                        err
+                      );
+                    });
                   }
-                }).catch(() => {});
-              }
+                })
+                .catch((err) => {
+                  console.log(
+                    "Push notification registration error:",
+                    err
+                  );
+                });
             } catch (error) {
-              console.log("User doc setup error:", error);
+              console.log(
+                "User doc setup error:",
+                error
+              );
             }
           } else {
             setUser(null);
           }
         } catch (authErr) {
-          console.log("Auth callback error:", authErr);
+          console.log(
+            "Auth callback error:",
+            authErr
+          );
         } finally {
           setLoading(false);
           SplashScreen.hideAsync().catch(() => {});
@@ -129,8 +211,12 @@ export function UserProvider({ children }) {
 
     return () => {
       clearTimeout(timer);
+
       unsubscribe();
-      if (unsubSnapshot) unsubSnapshot();
+
+      if (unsubSnapshot) {
+        unsubSnapshot();
+      }
     };
   }, []);
 
@@ -138,7 +224,7 @@ export function UserProvider({ children }) {
     try {
       await signOut(auth);
     } catch (error) {
-      console.log(error);
+      console.log("Logout error:", error);
     }
   };
 

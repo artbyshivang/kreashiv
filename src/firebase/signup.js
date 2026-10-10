@@ -1,17 +1,19 @@
 import {
     createUserWithEmailAndPassword,
     updateProfile,
-} from "firebase/auth";
+} from "@react-native-firebase/auth";
 
 import auth from "./auth";
 
 import {
     doc,
+    getFirestore,
     serverTimestamp,
     setDoc,
-} from "firebase/firestore";
+} from "@react-native-firebase/firestore";
 
-import { db } from "./config";
+const db = getFirestore();
+
 
 
 
@@ -84,6 +86,18 @@ if (!data.success) {
                 credits: 1000,
                 createdAt: serverTimestamp(),
             }
+        );
+
+        // Write to email index (document ID = email)
+        await setDoc(
+            doc(db, "emailIndex", email.toLowerCase().trim()),
+            { uid: userCredential.user.uid }
+        );
+
+        // Write to phone index (document ID = phone number)
+        await setDoc(
+            doc(db, "phoneIndex", phone),
+            { uid: userCredential.user.uid }
         );
 
         return {

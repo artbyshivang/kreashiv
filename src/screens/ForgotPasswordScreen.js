@@ -15,8 +15,8 @@ import { ArrowLeft } from 'lucide-react-native';
 import CustomAlert from "../components/CustomAlert";
 
 import { ThemeContext } from '../theme/ThemeContext';
-import auth from '../firebase/auth';
-// Removed: import { sendPasswordResetEmail } from 'firebase/auth';
+import { isAllowedEmail } from '../utils/validation';
+
 
 
 
@@ -54,9 +54,12 @@ const ForgotPasswordScreen = ({ navigation }) => {
     const handleForgotPassword = async () => {
 
         if (!email) {
+            showAlert("Error", "Please enter email");   
+            return;
+        }
 
-         showAlert("Error", "Please enter email");   
-
+        if (!isAllowedEmail(email)) {
+            showAlert("Invalid Email Provider", "Please use a supported email provider (e.g. Gmail, Outlook, Yahoo, etc.).");
             return;
         }
 

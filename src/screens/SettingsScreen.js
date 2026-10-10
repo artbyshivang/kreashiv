@@ -6,36 +6,42 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
+  ActivityIndicator
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
-import { updateDoc } from "firebase/firestore";
-import CountryPicker from "react-native-country-picker-modal";
-import CustomAlert from "../components/CustomAlert";
-import { UserContext } from "../context/UserContext";
-import { clearHistory } from "../storage/historyStorage";
-import { ThemeContext } from "../theme/ThemeContext";
-import { registerForPushNotificationsAsync } from "../utils/notifications";
-
 import {
   deleteUser,
   EmailAuthProvider,
   reauthenticateWithCredential,
   signOut,
-} from "firebase/auth";
-
+  updateEmail,
+  verifyBeforeUpdateEmail,
+} from "@react-native-firebase/auth";
+import CountryPicker from "react-native-country-picker-modal";
+import CustomAlert from "../components/CustomAlert";
+import { UserContext } from "../context/UserContext";
 import auth from "../firebase/auth";
+import { clearHistory } from "../storage/historyStorage";
+import { ThemeContext } from "../theme/ThemeContext";
+import { registerForPushNotificationsAsync } from "../utils/notifications";
+import { isAllowedEmail } from "../utils/validation";
 
 import {
   deleteDoc,
   doc,
   getDoc,
-} from "firebase/firestore";
+  getFirestore,
+  setDoc,
+  updateDoc,
+} from "@react-native-firebase/firestore";
 
-import { db } from "../firebase/config";
+const db = getFirestore();
+
+
 
 
 
@@ -46,6 +52,9 @@ export default function SettingsScreen() {
   const navigation = useNavigation();
   const [notifications, setNotifications] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
+  const [verifyModalVisible, setVerifyModalVisible] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
 
   const [fieldTitle, setFieldTitle] = useState("");
 
@@ -100,6 +109,42 @@ const showConfirm = (
 
 
 
+
+  const handleCheckVerification = async () => {
+    setIsVerifying(true);
+    try {
+      if (auth.currentUser) {
+        await auth.currentUser.reload();
+        
+        if (auth.currentUser.email === pendingEmail) {
+          const newEmail = pendingEmail;
+          const oldEmail = (user?.email || "").toLowerCase().trim();
+          const userRef = doc(db, "users", user.uid);
+          
+          // Update user doc
+          await updateDoc(userRef, { email: newEmail });
+          
+          // Remove old email from index, add new one
+          if (oldEmail) {
+            await deleteDoc(doc(db, "emailIndex", oldEmail));
+          }
+          await setDoc(doc(db, "emailIndex", newEmail), { uid: user.uid });
+          
+          setUser({ ...user, email: newEmail });
+          
+          setVerifyModalVisible(false);
+          showAlert("Success", "Email updated successfully");
+        } else {
+          showAlert("Not Verified", "Email not verified yet. Please check your inbox.");
+        }
+      }
+    } catch (error) {
+      console.log("Check verification error:", error);
+      showAlert("Error", "Something went wrong while checking status.");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
 
   const openEditor = (type) => {
     setFieldTitle(type);
@@ -185,10 +230,19 @@ const showConfirm = (
         await reauthenticateWithCredential(currentUser, credential);
       }
 
-      /* 2. DELETE FIRESTORE USER DOCUMENT FIRST */
+/* 2. DELETE FIRESTORE INDEXES AND USER DOCUMENT */
 try {
+  if (user?.email) {
+    const emailKey = user.email.toLowerCase().trim();
+    await deleteDoc(doc(db, "emailIndex", emailKey));
+  }
+  if (user?.phone) {
+    const phoneKey = user.phone.replace(/\s/g, "");
+    await deleteDoc(doc(db, "phoneIndex", phoneKey));
+  }
+
   await deleteDoc(doc(db, "users", uid));
-  console.log("Firestore user document deleted successfully.");
+  console.log("Firestore user document and indexes deleted successfully.");
 } catch (fsErr) {
   console.log("Firestore deletion error:", fsErr);
   setIsDeleting(false);
@@ -269,8 +323,9 @@ const loadNotificationSetting = async () => {
 
     const userRef = doc(db, "users", user.uid);
     const userSnap = await getDoc(userRef);
+    const snapExists = typeof userSnap.exists === 'function' ? userSnap.exists() : Boolean(userSnap.exists);
 
-    if (userSnap.exists()) {
+    if (snapExists) {
       const userData = userSnap.data();
 
       setNotifications(
@@ -557,26 +612,87 @@ useEffect(() => {
 
                     if (fieldTitle === "Phone") {
 
-                      await updateDoc(userRef, {
-                        phone: inputValue,
-                      });
+                      // Clean phone — remove spaces for comparison
+                      const newPhone = inputValue.replace(/\s/g, "");
+                      const oldPhone = (user?.phone || "").replace(/\s/g, "");
 
-                      setUser({
-                        ...user,
-                        phone: inputValue,
-                      });
+                      // Check if same as current
+                      if (newPhone === oldPhone) {
+                        setModalVisible(false);
+                        return;
+                      }
+
+                      // Check phoneIndex — simple getDoc, no collection query needed
+                      const phoneIndexRef = doc(db, "phoneIndex", newPhone);
+                      const phoneIndexSnap = await getDoc(phoneIndexRef);
+                      const phoneExists = typeof phoneIndexSnap.exists === "function"
+                        ? phoneIndexSnap.exists()
+                        : Boolean(phoneIndexSnap.exists);
+
+                      if (phoneExists && phoneIndexSnap.data()?.uid !== user.uid) {
+                        showAlert(
+                          "Number Already in Use",
+                          "This phone number is already linked to another account. Please use a different number."
+                        );
+                        return;
+                      }
+
+                      // Safe to update — update user doc
+                      await updateDoc(userRef, { phone: newPhone });
+
+                      // Remove old phone from index, add new one
+                      if (oldPhone) {
+                        await deleteDoc(doc(db, "phoneIndex", oldPhone));
+                      }
+                      await setDoc(doc(db, "phoneIndex", newPhone), { uid: user.uid });
+
+                      setUser({ ...user, phone: newPhone });
                     }
 
                     if (fieldTitle === "Email") {
+                      // Validate Provider
+                      if (!isAllowedEmail(inputValue)) {
+                        showAlert("Invalid Email Provider", "Please use a supported email provider (e.g. Gmail, Outlook, Yahoo, etc.).");
+                        return;
+                      }
 
-                      await updateDoc(userRef, {
-                        email: inputValue,
-                      });
+                      // Trim & lowercase for consistent comparison
+                      const newEmail = inputValue.trim().toLowerCase();
+                      const oldEmail = (user?.email || "").toLowerCase().trim();
 
-                      setUser({
-                        ...user,
-                        email: inputValue,
-                      });
+                      // Check if email is same as current
+                      if (newEmail === oldEmail) {
+                        setModalVisible(false);
+                        return;
+                      }
+
+                      // Check emailIndex — simple getDoc, no collection query needed
+                      const emailIndexRef = doc(db, "emailIndex", newEmail);
+                      const emailIndexSnap = await getDoc(emailIndexRef);
+                      const emailExists = typeof emailIndexSnap.exists === "function"
+                        ? emailIndexSnap.exists()
+                        : Boolean(emailIndexSnap.exists);
+
+                      if (emailExists && emailIndexSnap.data()?.uid !== user.uid) {
+                        showAlert(
+                          "Email Already in Use",
+                          "This email address is already linked to another account. Please use a different email."
+                        );
+                        return;
+                      }
+
+                      try {
+                        if (auth.currentUser) {
+                          await verifyBeforeUpdateEmail(auth.currentUser, newEmail);
+                        }
+                        setPendingEmail(newEmail);
+                        setModalVisible(false);
+                        setVerifyModalVisible(true);
+                      } catch (err) {
+                        console.log("verifyBeforeUpdateEmail error:", err);
+                        showAlert("Error", err?.message || "Failed to send verification link.");
+                      }
+                      return;
                     }
 
                     setModalVisible(false);
@@ -588,11 +704,11 @@ useEffect(() => {
 
                   } catch (error) {
 
-                    console.log(error);
+                    console.log("SETTINGS UPDATE ERROR:", error);
 
                     showAlert(
                       "Error",
-                      "Update failed"
+                      error?.message || error?.toString() || "Update failed"
                     );
                   }
                 }}
@@ -626,6 +742,74 @@ useEffect(() => {
 
 
 
+
+      {/* Verify Email Modal */}
+      <Modal
+        visible={verifyModalVisible}
+        transparent
+        animationType="fade"
+      >
+        <View style={{
+          flex: 1, backgroundColor: "rgba(0,0,0,0.5)",
+          justifyContent: "center", paddingHorizontal: 20
+        }}>
+          <View style={{
+            backgroundColor: theme.card, borderRadius: 26,
+            padding: 30, alignItems: 'center'
+          }}>
+            <View style={{
+              width: 80, height: 80, borderRadius: 40,
+              backgroundColor: theme.primary + '15', justifyContent: 'center',
+              alignItems: 'center', marginBottom: 24
+            }}>
+              <Ionicons name="mail-outline" size={40} color={theme.primary} />
+            </View>
+
+            <Text style={{
+              fontSize: 26, fontWeight: 'bold', color: theme.primary,
+              textAlign: 'center', marginBottom: 12
+            }}>Verify New Email</Text>
+
+            <Text style={{
+              fontSize: 15, color: theme.subText, textAlign: 'center',
+              lineHeight: 22, marginBottom: 8
+            }}>We've sent a verification link to:</Text>
+            
+            <Text style={{
+              fontSize: 16, color: theme.text, fontWeight: 'bold',
+              textAlign: 'center', marginBottom: 30
+            }}>{pendingEmail}</Text>
+
+            <TouchableOpacity
+              onPress={handleCheckVerification}
+              disabled={isVerifying}
+              style={{
+                backgroundColor: theme.primary, width: '100%', height: 52,
+                borderRadius: 14, flexDirection: 'row', justifyContent: 'center',
+                alignItems: 'center', marginBottom: 16
+              }}
+            >
+              {isVerifying ? <ActivityIndicator color="#fff" /> : (
+                <>
+                  <Ionicons name="refresh-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
+                  <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>I have verified</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setVerifyModalVisible(false)}
+              style={{
+                backgroundColor: 'transparent', borderWidth: 1, borderColor: theme.border,
+                width: '100%', height: 52, borderRadius: 14, flexDirection: 'row',
+                justifyContent: 'center', alignItems: 'center'
+              }}
+            >
+              <Text style={{ color: theme.text, fontSize: 16, fontWeight: '600' }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
 

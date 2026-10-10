@@ -26,20 +26,27 @@ const bannerAdUnitId = __DEV__
   ? TestIds.BANNER
   : "ca-app-pub-2777387455378814/8284390134";
 
+import {
+  doc,
+  getFirestore,
+  updateDoc,
+} from "@react-native-firebase/firestore";
 
+
+const db = getFirestore();
 
 
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute } from "@react-navigation/native";
 import * as Clipboard from 'expo-clipboard';
-import { doc, updateDoc } from "firebase/firestore";
+
 import { ActivityIndicator } from "react-native";
 import model from "../api/gemini";
 import AnimatedToggle from "../components/AnimatedToggle";
 import CustomAlert from "../components/CustomAlert";
 import Header from '../components/Header';
 import { UserContext } from "../context/UserContext";
-import { db } from "../firebase/config";
+
 import { savePromptToHistory } from "../storage/historyStorage";
 import { ThemeContext } from "../theme/ThemeContext";
 

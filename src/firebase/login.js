@@ -1,7 +1,6 @@
 import {
     signInWithEmailAndPassword,
-    signOut
-} from "firebase/auth";
+} from "@react-native-firebase/auth";
 
 import auth from "./auth";
 
@@ -28,9 +27,9 @@ const login = async (email, password) => {
 
         return {
             success: false,
-           error: error.code,
+            error: error.code,
         };
     }
 };
 
-export default login;
+export default login;

@@ -1,7 +1,4 @@
 import { useContext, useState } from 'react';
-
-import { doc, getDoc } from 'firebase/firestore';
-import { LogOut, Mail, RefreshCcw, Send } from 'lucide-react-native';
 import {
     ActivityIndicator,
     Image,
@@ -12,11 +9,20 @@ import {
     useColorScheme,
     View
 } from 'react-native';
+import {
+    doc,
+    getDoc,
+    getFirestore,
+} from '@react-native-firebase/firestore';
+import { LogOut, Mail, RefreshCcw, Send } from 'lucide-react-native';
 import CustomAlert from "../components/CustomAlert";
 import { UserContext } from '../context/UserContext';
 import auth from '../firebase/auth';
-import { db } from '../firebase/config';
 import { ThemeContext } from '../theme/ThemeContext';
+
+const db = getFirestore();
+
+
 
 
 const VerifyEmailScreen = () => {
@@ -79,8 +85,9 @@ const VerifyEmailScreen = () => {
                     );
 
                     const userSnap = await getDoc(userRef);
+                    const snapExists = typeof userSnap.exists === 'function' ? userSnap.exists() : Boolean(userSnap.exists);
 
-                    if (userSnap.exists()) {
+                    if (snapExists) {
                         setUser({
                             ...baseUser,
                             ...userSnap.data(),
