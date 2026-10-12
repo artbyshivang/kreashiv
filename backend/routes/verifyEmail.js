@@ -8,11 +8,39 @@ dotenv.config();
 const router = express.Router();
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+// In-memory rate limiting: 2-minute cooldown per email
+const verifyCooldowns = new Map();
+const COOLDOWN_MS = 2 * 60 * 1000; // 2 minutes
+
 router.post("/send-verification-email", async (req, res) => {
   try {
-    console.log("Send Verification Email API hit");
+    const rawEmail = req.body?.email;
+    const clientIp = req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "unknown";
+    const userAgent = req.headers["user-agent"] || "unknown";
 
-    const { email } = req.body;
+    if (!rawEmail || typeof rawEmail !== "string" || !rawEmail.includes("@")) {
+      console.log(`[VERIFY EMAIL REJECTED] Missing or invalid email. IP: ${clientIp}`);
+      return res.status(400).json({
+        success: false,
+        error: "Valid email address is required",
+      });
+    }
+
+    const email = rawEmail.trim().toLowerCase();
+    const now = Date.now();
+    const lastSent = verifyCooldowns.get(email);
+
+    if (lastSent && now - lastSent < COOLDOWN_MS) {
+      const waitSeconds = Math.ceil((COOLDOWN_MS - (now - lastSent)) / 1000);
+      console.log(`[VERIFY EMAIL BLOCKED] Rate limit hit for ${email}. Wait: ${waitSeconds}s. IP: ${clientIp}`);
+      return res.status(429).json({
+        success: false,
+        error: `A verification email was already sent recently. Please wait ${waitSeconds} seconds before requesting again.`,
+      });
+    }
+
+    console.log(`[VERIFY EMAIL SENDING] Email: ${email}, IP: ${clientIp}`);
+    verifyCooldowns.set(email, now);
 
     // Generate Firebase Email Verification link with actionCodeSettings for Custom Domain
     const actionCodeSettings = {

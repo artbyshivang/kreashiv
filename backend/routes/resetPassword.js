@@ -8,11 +8,41 @@ dotenv.config();
 const router = express.Router();
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+// In-memory rate limiting: 5-minute cooldown per email
+const resetCooldowns = new Map();
+const COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+
 router.post("/send-reset-email", async (req, res) => {
   try {
-    console.log("Forgot password API hit");
+    const rawEmail = req.body?.email;
+    const clientIp = req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "unknown";
+    const userAgent = req.headers["user-agent"] || "unknown";
 
-    const { email } = req.body;
+    if (!rawEmail || typeof rawEmail !== "string" || !rawEmail.includes("@")) {
+      console.log(`[RESET PWD REJECTED] Missing or invalid email. IP: ${clientIp}`);
+      return res.status(400).json({
+        success: false,
+        error: "Valid email address is required",
+      });
+    }
+
+    const email = rawEmail.trim().toLowerCase();
+    const now = Date.now();
+    const lastSent = resetCooldowns.get(email);
+
+    if (lastSent && now - lastSent < COOLDOWN_MS) {
+      const waitSeconds = Math.ceil((COOLDOWN_MS - (now - lastSent)) / 1000);
+      console.log(`[RESET PWD BLOCKED] Rate limit hit for ${email}. Wait: ${waitSeconds}s. IP: ${clientIp}, UA: ${userAgent}`);
+      return res.status(429).json({
+        success: false,
+        error: `A password reset link was already sent recently. Please wait ${Math.ceil(waitSeconds / 60)} minute(s) before requesting again.`,
+      });
+    }
+
+    console.log(`[RESET PWD SENDING] Email: ${email}, IP: ${clientIp}, UA: ${userAgent}`);
+
+    // Record timestamp before external calls to prevent race condition
+    resetCooldowns.set(email, now);
 
     const actionCodeSettings = {
       url: process.env.AUTH_ACTION_URL || "https://kreashiv.cloud/auth-action.html",
