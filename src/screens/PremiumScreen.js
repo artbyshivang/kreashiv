@@ -193,10 +193,8 @@ export default function PremiumScreen() {
 
     if (!result.success) {
       setLoading(false);
-      showAlert(
-        "Purchase Failed",
-        "Could not initiate purchase. Please try again."
-      );
+      const errMsg = result?.error?.message || "Could not initiate purchase. Please try again.";
+      showAlert("Purchase Failed", errMsg);
     }
     // If success: the purchaseUpdatedListener (in initializeBilling) handles the rest
   };
@@ -418,6 +416,7 @@ export default function PremiumScreen() {
                 credits="500 Credits"
                 desc="Perfect for quick top-ups"
                 theme={theme}
+                onPress={() => showAlert("⚡ Coming Soon!", "Credit Boosters will be available very soon. Stay tuned!")}
               />
 
               <BoosterCard
@@ -428,6 +427,7 @@ export default function PremiumScreen() {
                 desc="Best for power users"
                 highlight
                 theme={theme}
+                onPress={() => showAlert("🚀 Coming Soon!", "Credit Boosters will be available very soon. Stay tuned!")}
               />
             </View>
           </>
@@ -704,9 +704,12 @@ function BoosterCard({
   desc,
   highlight,
   theme,
+  onPress,
 }) {
   return (
-    <View
+    <TouchableOpacity
+      activeOpacity={0.85}
+      onPress={onPress}
       style={{
         flex: 1,
         backgroundColor: highlight
@@ -721,6 +724,30 @@ function BoosterCard({
           : theme.border,
       }}
     >
+      {/* COMING SOON BADGE */}
+      <View
+        style={{
+          position: "absolute",
+          top: 10,
+          right: 10,
+          backgroundColor: highlight ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.08)",
+          paddingHorizontal: 8,
+          paddingVertical: 3,
+          borderRadius: 999,
+        }}
+      >
+        <Text
+          style={{
+            fontSize: 9,
+            fontWeight: "800",
+            color: highlight ? "#fff" : theme.subText,
+            letterSpacing: 0.5,
+          }}
+        >
+          SOON
+        </Text>
+      </View>
+
       <Ionicons
         name={icon}
         size={22}
@@ -773,6 +800,6 @@ function BoosterCard({
       >
         {desc}
       </Text>
-    </View>
+    </TouchableOpacity>
   );
 }

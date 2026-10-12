@@ -624,7 +624,7 @@ export default function ProfileScreen() {
         </TouchableOpacity>
 
         <Text style={{ color: theme.subText, fontSize: 12, marginTop: 16, textAlign: 'center' }}>
-          App Version 3.1.1
+          App Version 3.1.7
         </Text>
 
 

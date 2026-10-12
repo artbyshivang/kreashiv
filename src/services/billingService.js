@@ -2,7 +2,6 @@ import * as IAP from "expo-iap";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "";
 
-
 export const PRODUCT_IDS = {
     MONTHLY: "premium_monthly",
     QUARTERLY: "premium_quarterly",
@@ -50,14 +49,16 @@ class BillingService {
     }
 
     // ──────────────────────────────
-    // GET SUBSCRIPTIONS (from Google Play)
+    // GET SUBSCRIPTIONS (expo-iap v4.7+ API)
     // ──────────────────────────────
     async getSubscriptions() {
         try {
-            return await IAP.getSubscriptionsAsync([
-                PRODUCT_IDS.MONTHLY,
-                PRODUCT_IDS.QUARTERLY,
-            ]);
+            // v4.7.0: fetchProducts({ skus, type: 'subs' })
+            const products = await IAP.fetchProducts({
+                skus: [PRODUCT_IDS.MONTHLY, PRODUCT_IDS.QUARTERLY],
+                type: "subs",
+            });
+            return products;
         } catch (error) {
             console.log("Subscription Load Error:", error);
             return [];
@@ -65,22 +66,73 @@ class BillingService {
     }
 
     // ──────────────────────────────
-    // PURCHASE SUBSCRIPTION
+    // PURCHASE SUBSCRIPTION (expo-iap v4.7+ API)
     // ──────────────────────────────
     async purchaseSubscription(productId) {
         try {
-            // On Android, requestSubscription triggers the Google Play sheet
-            await IAP.requestSubscription({
-                sku: productId,
-                andDangerouslyFinishTransactionAutomaticallyIOS: false,
+            // Step 1: Fetch the subscription to get offerToken
+            const products = await IAP.fetchProducts({
+                skus: [productId],
+                type: "subs",
             });
-            // The result comes via the purchase listener (setPurchaseListener)
+
+            console.log("Fetched products:", JSON.stringify(products));
+
+            if (!products || products.length === 0) {
+                console.log("❌ No product found for:", productId);
+                return {
+                    success: false,
+                    error: { message: "Product not found in Play Store" },
+                };
+            }
+
+            const sub = products[0];
+            console.log("Subscription details:", JSON.stringify(sub));
+
+            // Get offerToken — expo-iap v4.7.0 correct property names:
+            // Primary:    sub.subscriptionOffers[0].offerToken   (new standardized)
+            // Fallback:   sub.subscriptionOfferDetailsAndroid[0].offerToken  (deprecated but still works)
+            const offerToken =
+                sub?.subscriptionOffers?.[0]?.offerToken ||
+                sub?.subscriptionOfferDetailsAndroid?.[0]?.offerToken ||
+                null;
+
+            console.log("offerToken:", offerToken);
+            console.log("subscriptionOffers:", JSON.stringify(sub?.subscriptionOffers));
+            console.log("subscriptionOfferDetailsAndroid:", JSON.stringify(sub?.subscriptionOfferDetailsAndroid));
+
+            if (!offerToken) {
+                console.log("❌ offerToken missing — base plan not active in Play Console?");
+                return {
+                    success: false,
+                    error: { message: "offerToken missing — check Play Console base plan is ACTIVE" },
+                };
+            }
+
+            // Step 2: Request the subscription (v4.7.0 API)
+            await IAP.requestPurchase({
+                request: {
+                    google: {
+                        skus: [productId],
+                        subscriptionOffers: [{ sku: productId, offerToken }],
+                    },
+                },
+                type: "subs",
+            });
+
+            // Result comes via purchaseUpdatedListener
             return { success: true };
+
         } catch (error) {
-            console.log("Purchase Error:", error);
+            console.log("Purchase Error code:", error?.code);
+            console.log("Purchase Error message:", error?.message);
+            console.log("Purchase Error full:", JSON.stringify(error));
 
             // User cancelled — not a real error
-            if (error.code === "E_USER_CANCELLED") {
+            if (
+                error?.code === "E_USER_CANCELLED" ||
+                error?.message?.toLowerCase().includes("cancel")
+            ) {
                 return { success: false, cancelled: true };
             }
 

@@ -21,6 +21,9 @@ export default function ManagePlanScreen() {
     const { user, setUser } = useContext(UserContext);
 
     const isPremiumUser = user?.premium || false;
+    const planType = user?.planType || "monthly"; // "monthly" | "quarterly"
+    const isQuarterly = planType === "quarterly";
+    const maxCredits = isQuarterly ? 3000 : 1000;
 
     const [showCancelAlert, setShowCancelAlert] = useState(false);
     const [alertVisible, setAlertVisible] = useState(false);
@@ -37,7 +40,7 @@ export default function ManagePlanScreen() {
     const dailyUsed = user?.dailyUsage?.date === todayDate ? (user?.dailyUsage?.count || 0) : 0;
     const remainingDaily = Math.max(0, 15 - dailyUsed);
 
-    const proCredits = user?.credits ?? 1000;
+    const proCredits = user?.credits ?? maxCredits;
 
     return (
         <View
@@ -157,7 +160,7 @@ export default function ManagePlanScreen() {
                                     }}
                                 >
                                     {isPremiumUser
-                                        ? "Monthly Pro"
+                                        ? (isQuarterly ? "Quarterly Pro" : "Monthly Pro")
                                         : "Free Plan"}
                                 </Text>
 
@@ -219,14 +222,14 @@ export default function ManagePlanScreen() {
                     >
                         <PlanItem
                             label="Plan Type"
-                            value={isPremiumUser ? "Monthly" : "Free"}
+                            value={isPremiumUser ? (isQuarterly ? "Quarterly" : "Monthly") : "Free"}
                             light={isPremiumUser}
                             theme={theme}
                         />
 
                         <PlanItem
                             label="Reset"
-                            value={isPremiumUser ? "Monthly" : "Daily"}
+                            value={isPremiumUser ? (isQuarterly ? "Quarterly" : "Monthly") : "Daily"}
                             light={isPremiumUser}
                             theme={theme}
                         />
@@ -263,7 +266,7 @@ export default function ManagePlanScreen() {
                                     fontWeight: "700",
                                 }}
                             >
-                                {isPremiumUser ? `${proCredits} / 1000` : `${dailyUsed} / 15`}
+                                {isPremiumUser ? `${proCredits} / ${maxCredits}` : `${dailyUsed} / 15`}
                             </Text>
                         </View>
 
@@ -280,7 +283,7 @@ export default function ManagePlanScreen() {
                             <View
                                 style={{
                                     width: isPremiumUser
-                                        ? `${Math.min(100, Math.round((proCredits / 1000) * 100))}%`
+                                        ? `${Math.min(100, Math.round((proCredits / maxCredits) * 100))}%`
                                         : `${Math.min(100, Math.round((dailyUsed / 15) * 100))}%`,
                                     height: "100%",
                                     backgroundColor: isPremiumUser ? "#fff" : theme.primary,

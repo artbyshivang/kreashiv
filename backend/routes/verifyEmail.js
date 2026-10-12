@@ -8,16 +8,44 @@ dotenv.config();
 const router = express.Router();
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// In-memory rate limiting: 2-minute cooldown per email
+// In-memory rate limiting:
+// 1. Email cooldown: 10 minutes per email
 const verifyCooldowns = new Map();
-const COOLDOWN_MS = 2 * 60 * 1000; // 2 minutes
+const COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes
+
+// 2. IP rate limiting: max 3 requests per IP per 10 minutes
+const ipRequestHistory = new Map();
+const MAX_REQUESTS_PER_IP = 3;
+const IP_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+
+// Suspicious bot/tool user agents
+const BOT_USER_AGENTS = [
+  /curl/i,
+  /python/i,
+  /postman/i,
+  /wget/i,
+  /http\.rb/i,
+  /scrapy/i,
+  /go-http-client/i,
+  /java\//i,
+];
 
 router.post("/send-verification-email", async (req, res) => {
   try {
     const rawEmail = req.body?.email;
-    const clientIp = req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "unknown";
-    const userAgent = req.headers["user-agent"] || "unknown";
+    const clientIp = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress || "unknown";
+    const userAgent = req.headers["user-agent"] || "";
 
+    // 1. Reject known bot User-Agents
+    if (BOT_USER_AGENTS.some((pattern) => pattern.test(userAgent))) {
+      console.log(`[VERIFY EMAIL BLOCKED] Bot detected (${userAgent}). IP: ${clientIp}`);
+      return res.status(403).json({
+        success: false,
+        error: "Access denied.",
+      });
+    }
+
+    // 2. Validate email format
     if (!rawEmail || typeof rawEmail !== "string" || !rawEmail.includes("@")) {
       console.log(`[VERIFY EMAIL REJECTED] Missing or invalid email. IP: ${clientIp}`);
       return res.status(400).json({
@@ -28,18 +56,48 @@ router.post("/send-verification-email", async (req, res) => {
 
     const email = rawEmail.trim().toLowerCase();
     const now = Date.now();
-    const lastSent = verifyCooldowns.get(email);
 
-    if (lastSent && now - lastSent < COOLDOWN_MS) {
-      const waitSeconds = Math.ceil((COOLDOWN_MS - (now - lastSent)) / 1000);
-      console.log(`[VERIFY EMAIL BLOCKED] Rate limit hit for ${email}. Wait: ${waitSeconds}s. IP: ${clientIp}`);
+    // 3. IP Rate Limiting
+    const ipTimestamps = ipRequestHistory.get(clientIp) || [];
+    const validIpTimestamps = ipTimestamps.filter((ts) => now - ts < IP_WINDOW_MS);
+    if (validIpTimestamps.length >= MAX_REQUESTS_PER_IP) {
+      console.log(`[VERIFY EMAIL BLOCKED] IP rate limit exceeded for ${clientIp}`);
       return res.status(429).json({
         success: false,
-        error: `A verification email was already sent recently. Please wait ${waitSeconds} seconds before requesting again.`,
+        error: "Too many verification requests from this network. Please wait a few minutes before trying again.",
       });
     }
 
-    console.log(`[VERIFY EMAIL SENDING] Email: ${email}, IP: ${clientIp}`);
+    // 4. Per-Email Cooldown (10 minutes)
+    const lastSent = verifyCooldowns.get(email);
+    if (lastSent && now - lastSent < COOLDOWN_MS) {
+      const waitMinutes = Math.ceil((COOLDOWN_MS - (now - lastSent)) / (60 * 1000));
+      console.log(`[VERIFY EMAIL BLOCKED] Rate limit hit for ${email}. Wait: ${waitMinutes}m. IP: ${clientIp}`);
+      return res.status(429).json({
+        success: false,
+        error: `A verification email was already sent recently. Please wait ${waitMinutes} minute(s) before requesting again.`,
+      });
+    }
+
+    // 5. Verify user actually exists in Firebase Authentication
+    try {
+      await admin.auth().getUserByEmail(email);
+    } catch (authErr) {
+      if (authErr.code === "auth/user-not-found") {
+        console.log(`[VERIFY EMAIL REJECTED] User not found: ${email}. IP: ${clientIp}`);
+        return res.status(404).json({
+          success: false,
+          error: "No account found with this email address.",
+        });
+      }
+      throw authErr;
+    }
+
+    console.log(`[VERIFY EMAIL SENDING] Email: ${email}, IP: ${clientIp}, UA: ${userAgent}`);
+
+    // Update IP history and email cooldown
+    validIpTimestamps.push(now);
+    ipRequestHistory.set(clientIp, validIpTimestamps);
     verifyCooldowns.set(email, now);
 
     // Generate Firebase Email Verification link with actionCodeSettings for Custom Domain
@@ -98,12 +156,11 @@ router.post("/send-verification-email", async (req, res) => {
     });
 
   } catch (error) {
-    console.log("VERIFY EMAIL ERROR:");
-    console.log(error);
+    console.log("VERIFY EMAIL ERROR:", error);
 
     res.status(500).json({
       success: false,
-      error: error.message,
+      error: error.message || "Unable to send verification email",
     });
   }
 });

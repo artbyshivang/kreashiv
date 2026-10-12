@@ -2,7 +2,7 @@
   "expo": {
     "name": "Kreashiv",
     "slug": "kreashiv",
-    "version": "3.1.1",
+    "version": "3.1.7",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "kreashiv",
@@ -13,7 +13,7 @@
     },
     "android": {
       "package": "com.kreashiv.app",
-      "versionCode": 15,
+      "versionCode": 21,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#001b17",
@@ -44,7 +44,17 @@
           "iosAppId": "ca-app-pub-3940256099942544~1458002511"
         }
       ],
-      "expo-iap"
+      "expo-iap",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "extraProguardRules": "-keep class com.swmansion.reanimated.** { *; }\n-keep class com.facebook.react.turbomodule.** { *; }\n-keep class com.facebook.react.bridge.** { *; }\n-keep class com.android.billingclient.** { *; }"
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
